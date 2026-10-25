@@ -139,6 +139,17 @@ release `.deb`; report packaging problems on its AUR page. Package-managed
 installs should set `VOICESTUDIO_DISABLE_UPDATER=1` so `pacman` handles
 updates instead of the in-app updater.
 
+### Nix / NixOS
+
+A community-maintained Nix flake provides development shells and an FHS environment for running from source (not tested in CI). See the [Nix / NixOS guide](nix.md):
+
+```bash
+nix develop .#fhs   # recommended for NixOS
+bun install
+bun run setup:api
+bun run dev
+```
+
 ## ChromeOS, iPad and other devices
 
 There is no native ChromeOS or iPadOS app, and VoiceStudio does not run
