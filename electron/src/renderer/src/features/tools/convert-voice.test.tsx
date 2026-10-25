@@ -45,6 +45,33 @@ vi.mock('@/hooks/use-profiles', () => ({
   }),
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('@/features/clone/language-picker', () => ({
+  LanguagePicker: ({
+    value,
+    onValueChange,
+    supportedOptions,
+    disabled,
+  }: {
+    value: string;
+    onValueChange: (value: string) => void;
+    supportedOptions: readonly string[];
+    disabled?: boolean;
+  }) => (
+    <select
+      aria-label="convert.source_language"
+      value={value}
+      disabled={disabled}
+      onChange={(event) => onValueChange(event.target.value)}
+    >
+      <option value="Auto">Auto</option>
+      {supportedOptions.map((name) => (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      ))}
+    </select>
+  ),
+}));
 vi.mock('@/components/waveform-player', () => ({
   WaveformPlayer: ({ src, source }: { src: string; source: string }) => (
     <div data-testid={source}>{src}</div>
@@ -81,8 +108,33 @@ it('requires source and target, posts independent inputs and plays returned audi
   fireEvent.click(screen.getByRole('button', { name: 'Alpha' }));
   fireEvent.click(button);
   expect(await screen.findByTestId('convert-result')).toHaveTextContent('/api/audio/x.wav');
-  expect(mock.convert).toHaveBeenCalledWith(expect.any(File), 'a', true, expect.any(AbortSignal));
+  expect(mock.convert).toHaveBeenCalledWith(
+    expect.any(File),
+    'a',
+    true,
+    expect.any(AbortSignal),
+    'Auto',
+  );
   expect(screen.getByText('Recognized source')).toBeInTheDocument();
+});
+it('sends the picked source language and offers only languages the backend pins', async () => {
+  mock.convert.mockResolvedValue({ id: 'x', audio_url: '/audio/x.wav', text: 'Barev' });
+  const { upload } = mount();
+  const picker = screen.getByLabelText('convert.source_language');
+  expect(picker).toContainHTML('Armenian');
+  expect(picker).not.toContainHTML('Klingon');
+  upload();
+  fireEvent.click(screen.getByRole('button', { name: 'Alpha' }));
+  fireEvent.change(picker, { target: { value: 'Armenian' } });
+  fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
+  await screen.findByTestId('convert-result');
+  expect(mock.convert).toHaveBeenCalledWith(
+    expect.any(File),
+    'a',
+    true,
+    expect.any(AbortSignal),
+    'Armenian',
+  );
 });
 it('cancels obsolete conversion and ignores a late response after source changes', async () => {
   let finish!: (value: unknown) => void;
@@ -178,5 +230,11 @@ it.each([
   fireEvent.click(screen.getByRole('button', { name }));
   fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
   expect(await screen.findByTestId('convert-result')).toBeInTheDocument();
-  expect(mock.convert).toHaveBeenCalledWith(expect.any(File), id, true, expect.any(AbortSignal));
+  expect(mock.convert).toHaveBeenCalledWith(
+    expect.any(File),
+    id,
+    true,
+    expect.any(AbortSignal),
+    'Auto',
+  );
 });
