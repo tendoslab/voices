@@ -121,6 +121,10 @@ still works on CPU, just slower. What you can do today:
   automatically.
 - **Run on Linux** (native, or the ROCm Docker image) for ROCm acceleration of
   the PyTorch engines — see [linux.md — AMD GPU (ROCm)](linux.md#amd-gpu-rocm).
+- **Community-tested: a WSL2 distro without Docker.** ROCm 7.2.4 plus AMD's
+  `librocdxg` bridge, with reusable disk images, validated on an RX 7800 XT
+  with the `v0.5.6` tag — see [wsl-amd-rocm.md](wsl-amd-rocm.md). Unsupported,
+  and it includes the full build log.
 - **Advanced / unsupported: AMD's own Windows ROCm wheels.** AMD publishes
   PyTorch ROCm wheels for Windows (`https://repo.amd.com/rocm/whl-multi-arch/`,
   Python 3.11–3.14, RDNA 3 / RDNA 4 cards such as the RX 7000 and RX 9000 series).

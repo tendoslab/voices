@@ -143,7 +143,8 @@ docker run -d --name omnivoice \
 WSL exposes AMD compute through `/dev/dxg`, not native Linux's `/dev/kfd` and
 `/dev/dri`. First install ROCm and `librocdxg` in the WSL distribution and
 confirm the host-side `rocminfo` lists the GPU. Then use the WSL-specific
-bridge flags from AMD's `librocdxg` container contract:
+bridge flags from AMD's `librocdxg` container contract (to run it in a WSL
+distro directly, without a container, see [wsl-amd-rocm.md](wsl-amd-rocm.md)):
 
 ```bash
 docker run -d --name omnivoice \
