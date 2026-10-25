@@ -5,6 +5,7 @@ const OMNIVOICE = 'k2-fsa/OmniVoice';
 const WHISPER_BASE = 'Systran/faster-whisper-base';
 const WHISPER_TURBO = 'deepdml/faster-whisper-large-v3-turbo-ct2';
 const WHISPER_LARGE = 'Systran/faster-whisper-large-v3';
+const MLX_WHISPER_LARGE = 'mlx-community/whisper-large-v3-mlx';
 const SHERPA_TINY = 'csukuangfj/sherpa-onnx-whisper-tiny';
 const SHERPA_PARAKEET = 'csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8';
 const NLLB = 'facebook/nllb-200-distilled-600M';
@@ -14,6 +15,10 @@ export const performancePackRepos: Record<PerformanceTier, readonly string[]> = 
   balanced: [OMNIVOICE, WHISPER_TURBO, SHERPA_TINY, SHERPA_PARAKEET],
   quality: [OMNIVOICE, WHISPER_LARGE, SHERPA_TINY, SHERPA_PARAKEET, NLLB],
   max: [OMNIVOICE, WHISPER_LARGE, SHERPA_TINY, SHERPA_PARAKEET, NLLB],
+};
+
+const acceleratedVariants: Readonly<Record<string, string>> = {
+  [WHISPER_LARGE]: MLX_WHISPER_LARGE,
 };
 
 export interface PerformanceModelPack {
@@ -31,7 +36,10 @@ export function resolvePerformanceModelPack(
 ): PerformanceModelPack {
   const byRepo = new Map(models.map((model) => [model.repo_id, model]));
   const selected = performancePackRepos[tier]
-    .map((repoId) => byRepo.get(repoId))
+    .map((repoId) => {
+      const accelerated = byRepo.get(acceleratedVariants[repoId] ?? '');
+      return accelerated?.supported ? accelerated : byRepo.get(repoId);
+    })
     .filter((model): model is CatalogueModel => Boolean(model?.supported));
   const missing = selected.filter((model) => !model.installed);
   return {

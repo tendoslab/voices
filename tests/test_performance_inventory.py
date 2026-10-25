@@ -42,6 +42,7 @@ def local_inventory(monkeypatch):
     monkeypatch.setattr(profiles, "_installed_ct2_models", lambda: [
         {"repo_id": "Systran/faster-whisper-tiny"}, {"repo_id": "Systran/faster-whisper-large-v3"},
     ])
+    monkeypatch.setattr(profiles, "_installed_mlx_whisper_model", lambda: None)
     monkeypatch.setattr(sherpa_dictation, "sherpa_available", lambda: (True, "ready"))
     monkeypatch.setattr(profiles, "_installed_dictation_models", lambda: [
         SimpleNamespace(id="sherpa-whisper-tiny", kind="offline-whisper", label="Whisper Tiny"),
@@ -59,6 +60,18 @@ def test_real_inventory_prioritizes_omni_and_upgrades_dictation(local_inventory)
     assert plan["families"]["tts"]["selection"]["engine"] == "omnivoice"
     assert plan["families"]["asr"]["selection"]["model"].endswith("tiny")
     assert plan["families"]["dictation"]["selection"]["model"] == "sherpa-parakeet-tdt-v3"
+
+
+def test_metal_host_plans_gpu_whisper_over_its_cpu_only_copy(local_inventory, monkeypatch):
+    monkeypatch.setattr(inventory, "hardware_snapshot", lambda: {
+        "device": "mps", "ram_gb": 32, "vram_gb": 0, "cpu_threads": 12, "probe_ok": True,
+    })
+    monkeypatch.setattr(profiles, "_installed_mlx_whisper_model", lambda: {
+        "repo_id": "mlx-community/whisper-large-v3-mlx",
+    })
+    entry = inventory.profile_plan("quality", {}, local_inventory)["families"]["asr"]
+    assert entry["selection"]["engine"] == "mlx-whisper"
+    assert entry["selection"]["model"] == "mlx-community/whisper-large-v3-mlx"
 
 
 def test_auto_quality_does_not_strand_tts_or_dictation_on_the_smallest_model(local_inventory):

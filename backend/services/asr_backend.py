@@ -1309,15 +1309,17 @@ _MLX_MODEL_DEFAULT = "mlx-community/whisper-large-v3-mlx"
 _MLX_MODEL_TURBO = "mlx-community/whisper-large-v3-turbo"
 
 
+def mlx_whisper_model_id() -> str:
+    return os.environ.get("ASR_MODEL", _MLX_MODEL_DEFAULT)
+
+
 class MLXWhisperBackend(ASRBackend):
     id = "mlx-whisper"
     display_name = "MLX Whisper (Apple Silicon CoreML)"
     gpu_compat = ("mps", "cpu")
 
     def __init__(self, model_name: str | None = None):
-        self._model_name = model_name or os.environ.get(
-            "ASR_MODEL", _MLX_MODEL_DEFAULT,
-        )
+        self._model_name = model_name or mlx_whisper_model_id()
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
@@ -3989,7 +3991,7 @@ def _offline_asr_repo(backend_id: str | None = None) -> str | None:
             or _FASTER_WHISPER_DEFAULT
         )
     if bid == "mlx-whisper":
-        return os.environ.get("ASR_MODEL", _MLX_MODEL_DEFAULT)
+        return mlx_whisper_model_id()
     if bid == "parakeet-mlx":
         return os.environ.get("ASR_MODEL_PARAKEET_MLX", _PARAKEET_MLX_DEFAULT)
     if bid == "sherpa-onnx-asr":

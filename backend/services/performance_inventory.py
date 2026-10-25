@@ -69,10 +69,10 @@ def profile_plan(choice: str, overrides: dict, selections: dict) -> dict:
         if "asr" in current:
             fixed["asr"] = current["asr"]
     else:
-        backend = profiles._faster_whisper_backend()
-        if backend:
+        installed = profiles._installed_asr_models()
+        if installed or profiles._faster_whisper_backend():
             models = []
-            for model in profiles._installed_ct2_models():
+            for backend, model in installed:
                 repo = model["repo_id"]
                 # Explicit Whisper quality order, not download-size sorting.
                 rank, ram, vram = (4, 4, 5)
