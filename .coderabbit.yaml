@@ -124,10 +124,14 @@ reviews:
       instructions: >-
         Hard rule (owner-restyled 2026-07-17): the Unreleased section is a
         short **Highlights** bullet list followed by ### Changed/Added/Docs/
-        Fixed sections whose entries are each a SINGLE one-liner ending with
-        the (#NNN) ref and, for community contributions, a "— thanks @user!"
-        credit. Flag multi-line or bold-lead paragraph entries, missing refs,
-        and missing credits.
+        Fixed/License/CI sections whose entries are each a SINGLE one-liner
+        ending with the (#NNN) ref and, for community contributions, a
+        "— thanks @user!" credit. All six subsections are valid — developer-
+        facing test, tooling and workflow entries belong under ### CI, which
+        the Unreleased section already uses, and the user-facing ### Fixed is
+        not a substitute for it. tests/test_changelog_style.py is the
+        authority on this layout. Flag multi-line or bold-lead paragraph
+        entries, missing refs, and missing credits.
     - path: "**/package.json"
       instructions: >-
         This is a bun workspace monorepo: any dependency change in a workspace
