@@ -70,18 +70,21 @@ async def _resolve_dub_execution():
 
 def _prepare_oom_retry(error: Exception) -> bool:
     """Prepare one low-step retry after a genuine local device OOM."""
+    from core.failure import is_gpu_oom
+
     is_oom = (
         isinstance(error, torch.cuda.OutOfMemoryError)
         or "out of memory" in str(error).lower()
         or "CUDA error" in str(error)
+        # Every accelerator's device-OOM spelling, incl. Intel XPU's
+        # UR_RESULT_ERROR_OUT_OF_DEVICE_MEMORY.
+        or is_gpu_oom(error)
     )
     if not is_oom:
         return False
-    import gc
-    from services.model_manager import release_device_cache
+    from services.model_manager import release_after_oom
 
-    gc.collect()
-    release_device_cache()
+    release_after_oom(error)
     return True
 
 

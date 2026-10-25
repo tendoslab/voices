@@ -765,6 +765,7 @@ _OOM_MSG_SIGNATURES = (
     "cublas_status_alloc_failed",  # cuBLAS workspace allocation
     "cuda_error_out_of_memory",    # raw CUDA driver error name
     "paging file is too small",    # Windows [WinError 1455] mapping DLLs
+    "out_of_device_memory",        # Intel XPU: UR_RESULT_ERROR_OUT_OF_DEVICE_MEMORY
 )
 
 
@@ -1121,6 +1122,11 @@ def _oom_friendly_reraise(e):
             + f" Underlying error: {_safe_exc_text(e)}"
         ) from e
     if _is_oom_failure(e):
+        # The flush at the top ran while this traceback still pinned the
+        # failed generation's activations; release them so the NEXT request
+        # has room instead of failing the same way until a restart.
+        from services.model_manager import release_after_oom
+        release_after_oom(e)
         raise RuntimeError(
             f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
             f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"

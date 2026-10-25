@@ -79,6 +79,7 @@ _ACTIONABLE_LOG_MARKERS = (
     "critical",
     "fatal error",
     "out of memory",
+    "out_of_device_memory",  # Intel XPU driver OOM (UR_RESULT_ERROR_...)
     "memoryerror",
     "segmentation fault",
     "access violation",

@@ -116,3 +116,44 @@ def test_cpu_fallback_preserves_injected_model_and_processor(monkeypatch):
     assert pipe.tokenizer is processor and pipe.feature_extractor is processor
     assert str(pipe.device) == "cpu"
     assert calls == [{"device": "cpu", "dtype": torch.float32}]
+
+
+@pytest.mark.parametrize(
+    "oom",
+    [
+        RuntimeError("level_zero backend failed with error: 39 (UR_RESULT_ERROR_OUT_OF_DEVICE_MEMORY)"),
+        RuntimeError("XPU out of memory. Tried to allocate 1.50 GiB"),
+    ],
+)
+def test_intel_xpu_pipeline_gets_the_same_ladder_and_release(audio, monkeypatch, oom):
+    """get_best_device() picks XPU on Intel Arc. Its OOMs must step the batch
+    down and release the failed batch exactly like CUDA, not fail the chunk."""
+    import services.model_manager as mm
+
+    class _XpuPipe(_FakePipe):
+        def __call__(self, _audio, *, return_timestamps, chunk_length_s, batch_size):
+            self.calls.append(batch_size)
+            if batch_size > self.oom_below_batch:
+                raise oom
+            return {"text": "ok", "chunks": []}
+
+    released = []
+    monkeypatch.setattr(mm, "release_after_oom", released.append)
+    pipe = _XpuPipe(oom_below_batch=2)
+    pipe.device = "xpu:0"
+    out = PyTorchWhisperBackend(asr_pipe=pipe).transcribe(audio, word_timestamps=True)
+    assert out["text"] == "ok"
+    assert pipe.calls == [8, 2]
+    assert released == [oom]
+
+
+@pytest.mark.parametrize("device", ["cuda:0", "xpu:0"])
+def test_cpu_fallback_releases_the_gpu_it_left(monkeypatch, device):
+    import services.model_manager as mm
+    from types import SimpleNamespace
+
+    released = []
+    monkeypatch.setattr(mm, "release_device_cache", lambda **kw: released.append(kw))
+    pipe = SimpleNamespace(model=SimpleNamespace(to=lambda **kw: None), device=device)
+    PyTorchWhisperBackend(asr_pipe=pipe)._rebuild_on_cpu()
+    assert released == [{"device": device}]

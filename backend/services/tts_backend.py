@@ -1418,8 +1418,8 @@ def _get_clone_prompt(
                         "releasing allocator caches and retrying once", e,
                     )
                     try:
-                        from services.model_manager import free_vram
-                        free_vram()
+                        from services.model_manager import release_after_oom
+                        release_after_oom(e)
                     except Exception:  # noqa: BLE001 — reclaim is best-effort
                         logger.debug("VRAM reclaim before OOM retry failed", exc_info=True)
                     prompt = model.create_voice_clone_prompt(

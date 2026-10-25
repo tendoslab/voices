@@ -708,6 +708,25 @@ PyTorch build and, for every engine, whether it uses the GPU.
 
 **Linked issue:** [#2468](https://github.com/debpalash/VoiceStudio/issues/2468)
 
+## 12c. Intel Arc (XPU): model load fails, or every generation fails after one out-of-memory error
+
+**Symptom (load):** with a PyTorch `+xpu` build on Windows, every model load
+fails and the log shows `doesn't support querying the available free memory`.
+
+**Symptom (after OOM):** one generation fails with
+`UR_RESULT_ERROR_OUT_OF_DEVICE_MEMORY` or `XPU out of memory`. After that, every
+generation fails the same way until the app restarts.
+
+**Cause:** the Arc Windows driver does not implement the free-memory query that
+model loading calls. Separately, the failed request's memory used to stay held
+after an out-of-memory error.
+
+**Fix:** update VoiceStudio. Free memory is now estimated from total minus
+reserved, and the failed request's memory is released right after the error.
+If generations still run out of memory, use a smaller model or shorter text,
+or press **Flush** to unload models. Intel Arc support is experimental — see
+[windows.md — GPU support](windows.md#gpu-support).
+
 ## 13. Stuck on the download page / incomplete model cache ("only `refs/`")
 
 **Symptom:** the setup screen never finishes the model download and you can't

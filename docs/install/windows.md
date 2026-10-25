@@ -130,6 +130,20 @@ still works on CPU, just slower. What you can do today:
   parity is claimed. DirectML is not an option either: `torch-directml` needs
   PyTorch 2.4.
 
+**Intel Arc GPUs (XPU) — experimental.** The Windows install does not ship the
+Intel XPU build of PyTorch, so out of the box an Arc card is not used. If you run
+VoiceStudio with a PyTorch `+xpu` build, the main OmniVoice engine and PyTorch
+Whisper ASR run on the card. Engines that install their own PyTorch (CosyVoice,
+VoxCPM2, IndexTTS and similar) still run on the CPU. Two Windows driver quirks
+are handled for you:
+
+- The Arc driver cannot report free GPU memory. VoiceStudio estimates it as total
+  memory minus what PyTorch has reserved, so model loads no longer fail with
+  "doesn't support querying the available free memory".
+- An out-of-memory error (`UR_RESULT_ERROR_OUT_OF_DEVICE_MEMORY` or
+  `XPU out of memory`) is reported as one and its memory is released, so the next
+  generation can run without restarting the app.
+
 **Settings → Performance → GPU acceleration** shows exactly what applies to your
 machine: the GPUs Windows reports, which PyTorch build is installed, and a
 verdict for every engine (uses the GPU, runs on the CPU and why, or CPU by

@@ -1641,6 +1641,11 @@ def get_best_device():
 
     # ── Intel Arc / discrete GPU via IPEX ────────────────────────────
     if family == "xpu":
+        # main.py installs this at startup; repeat (idempotent) for processes
+        # that load models without main.py, e.g. the OmniVoice subprocess.
+        from core.xpu_compat import patch_xpu_mem_get_info
+
+        patch_xpu_mem_get_info(torch)
         try:
             logger.info("Using Intel XPU device: %s", torch.xpu.get_device_name(0))
         except Exception:
@@ -3737,6 +3742,41 @@ def free_vram():
     if torch.cuda.is_available():
         _clear_cublas_workspaces(torch)
     release_device_cache(raise_on_failure=True)
+
+
+def release_after_oom(error: BaseException) -> None:
+    """Give an out-of-memory failure's device memory back to the driver.
+
+    ``free_vram()`` alone frees nothing here: OOM handlers run inside
+    ``except`` while ``error.__traceback__`` still pins every frame between
+    the handler and the allocation that failed, and those frames' locals hold
+    the activations. ``gc.collect()`` cannot reclaim them and ``empty_cache()``
+    only returns blocks the allocator already considers free, so the device
+    stays full and every later request fails the same way until a restart —
+    on Intel XPU the next kernel launch gets UR_RESULT_ERROR_OUT_OF_DEVICE_MEMORY
+    with ~11 GB still held. Clearing the finished frames (and those of every
+    chained exception) drops the activations first; the frame that is still
+    executing is skipped by ``traceback.clear_frames``. Best-effort, never
+    raises.
+    """
+    import traceback
+
+    pending: list[BaseException] = [error]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if current is None or id(current) in seen:
+            continue
+        seen.add(id(current))
+        try:
+            traceback.clear_frames(current.__traceback__)
+        except Exception:  # noqa: BLE001 — reclaim is best-effort
+            logger.debug("clearing OOM traceback frames failed", exc_info=True)
+        pending.extend((current.__cause__, current.__context__))
+    try:
+        free_vram()
+    except Exception:  # noqa: BLE001 — reclaim is best-effort
+        logger.debug("VRAM reclaim after OOM failed", exc_info=True)
 
 
 def unload_shared_model() -> bool:

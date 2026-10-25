@@ -521,6 +521,8 @@ _GPU_OOM_SIGNATURES = (
     "mps backend out of memory",
     "hip out of memory",
     "out of memory on device",
+    "xpu out of memory",           # torch's Intel XPU caching allocator
+    "out_of_device_memory",        # Intel XPU driver: UR_RESULT_ERROR_OUT_OF_DEVICE_MEMORY
 )
 
 
