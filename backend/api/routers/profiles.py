@@ -962,7 +962,9 @@ async def lock_profile(
             shutil.copy2(str(src_path), staged_path)
             restore, finalize = _install_staged(staged_path, locked_path)
 
-            ref_text = history["text"][:100] if history["text"] else ""
+            # Generation pairs the locked take with this text as its
+            # reference transcript, so it must be the whole take's text.
+            ref_text = history["text"] or ""
 
             conn.execute(
                 "UPDATE voice_profiles SET locked_audio_path=?, seed=?, is_locked=1, ref_text=? WHERE id=?",
