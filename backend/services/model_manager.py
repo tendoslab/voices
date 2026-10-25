@@ -3390,13 +3390,25 @@ def _checkpoint_in_local_cache(checkpoint: str) -> bool:
 async def preload_model():
     """Background model warm-up — call from lifespan startup.
 
-    Loads the TTS model on the GPU pool thread so the first /generate
-    call is near-instant instead of waiting 4-6s for weight loading.
+    Loads native OmniVoice on the GPU pool thread only when it is selected,
+    so its first /generate call avoids waiting for weight loading.
     Non-blocking: if models aren't installed yet, silently exits.
     """
     global model, _last_used
     if model is not None:
         return  # already loaded
+
+    # This singleton belongs to native OmniVoice, not the selected engine's
+    # adapter. Warming it for another engine wastes memory before first use.
+    try:
+        from services.tts_backend import active_backend_id
+
+        if active_backend_id() != "omnivoice":
+            logger.info("Native TTS preload skipped: another TTS engine is selected.")
+            return
+    except Exception:  # noqa: BLE001 -- optional warm-up must not guess an engine
+        logger.debug("TTS preload selection failed; skipping warm-up", exc_info=True)
+        return
 
     # On MPS the configured ``omnivoice`` id resolves to a crash-isolated
     # sidecar. Warming the native singleton here would put the same fatal MPS

@@ -9,11 +9,18 @@ import pytest
 
 @pytest.fixture
 def model_manager(monkeypatch):
+    """Isolate model state and select native OmniVoice regardless of host hardware."""
     for mod_name in ("core.config", "services.model_manager"):
         if getattr(sys.modules.get(mod_name), "__file__", None) is None:
             sys.modules.pop(mod_name, None)
 
     import services.model_manager as mm
+    from core import device_caps
+
+    monkeypatch.setattr(
+        device_caps, "detect_host_caps", lambda: SimpleNamespace(family="cpu")
+    )
+    monkeypatch.setenv("OMNIVOICE_TTS_BACKEND", "omnivoice")
 
     monkeypatch.setattr(mm, "_torch", None)
     monkeypatch.setattr(mm, "_OmniVoice", None)
@@ -131,17 +138,93 @@ def test_preload_never_loads_uninstalled_checkpoint(model_manager, monkeypatch):
     assert model_manager.model is None
 
 
-def test_preload_warms_up_locally_installed_checkpoint(model_manager, monkeypatch):
+@pytest.mark.parametrize("family", ["cpu", "cuda", "rocm"])
+def test_preload_warms_up_locally_installed_checkpoint(model_manager, monkeypatch, family):
     """The counterpart guard: a locally present checkpoint must still warm up
     (skipping it would make the first /generate eat the full weight load)."""
+    from core import device_caps
+
+    monkeypatch.setattr(
+        device_caps, "detect_host_caps", lambda: SimpleNamespace(family=family)
+    )
     monkeypatch.setattr(model_manager, "_checkpoint_in_local_cache", lambda c: True)
 
     loaded = SimpleNamespace(llm=object())
 
     async def _fake_load():
+        """Return installed weights without loading a real model."""
         return loaded
 
     monkeypatch.setattr(model_manager, "_load_model_with_timeout", _fake_load)
+    asyncio.run(model_manager.preload_model())
+
+    assert model_manager.model is loaded
+
+
+@pytest.mark.parametrize("family", ["cpu", "cuda", "rocm", "mps"])
+@pytest.mark.parametrize("backend_id", ["voxcpm2", "omnivoice-subprocess", "mlx-audio", "unknown"])
+def test_preload_skips_other_selected_engines(model_manager, monkeypatch, family, backend_id):
+    """Other engine selections must skip all native OmniVoice preload work."""
+    from core import device_caps, prefs
+
+    monkeypatch.setattr(
+        device_caps, "detect_host_caps", lambda: SimpleNamespace(family=family)
+    )
+    monkeypatch.delenv("OMNIVOICE_TTS_BACKEND")
+    prefs.set_("tts_backend", backend_id)
+
+    def unexpected(*args, **kwargs):
+        """Fail if the unselected engine reaches licence, cache, or weight work."""
+        pytest.fail("an unselected OmniVoice must not check its licence, cache or load weights")
+
+    monkeypatch.setattr(model_manager, "_ensure_omnivoice_licence", unexpected)
+    monkeypatch.setattr(model_manager, "_checkpoint_in_local_cache", unexpected)
+    monkeypatch.setattr(model_manager, "_load_model_with_timeout", unexpected)
+
+    asyncio.run(model_manager.preload_model())
+
+    assert model_manager.model is None
+
+
+@pytest.mark.parametrize("saved,override,should_load", [
+    ("omnivoice", "voxcpm2", False),
+    ("voxcpm2", "omnivoice", True),
+])
+def test_preload_respects_engine_environment_override(
+    model_manager, monkeypatch, saved, override, should_load
+):
+    """An environment override wins over the saved engine in either direction."""
+    from core import prefs
+
+    prefs.set_("tts_backend", saved)
+    monkeypatch.setenv("OMNIVOICE_TTS_BACKEND", override)
+    monkeypatch.setattr(model_manager, "_checkpoint_in_local_cache", lambda c: True)
+    loaded = SimpleNamespace(llm=object())
+
+    async def fake_load():
+        """Return a recognizable model to detect whether preload ran."""
+        return loaded
+
+    monkeypatch.setattr(model_manager, "_load_model_with_timeout", fake_load)
+    asyncio.run(model_manager.preload_model())
+
+    assert model_manager.model is (loaded if should_load else None)
+
+
+def test_preload_keeps_default_omnivoice_warmup(model_manager, monkeypatch):
+    """Missing engine preferences and overrides preserve the default warm-up."""
+    from core import prefs
+
+    monkeypatch.delenv("OMNIVOICE_TTS_BACKEND")
+    prefs.delete("tts_backend")
+    monkeypatch.setattr(model_manager, "_checkpoint_in_local_cache", lambda c: True)
+    loaded = SimpleNamespace(llm=object())
+
+    async def fake_load():
+        """Return a recognizable model without downloading or allocating weights."""
+        return loaded
+
+    monkeypatch.setattr(model_manager, "_load_model_with_timeout", fake_load)
     asyncio.run(model_manager.preload_model())
 
     assert model_manager.model is loaded
