@@ -51,6 +51,11 @@ Listener = Callable[[ProgressEvent], None]
 _listeners: dict[int, Listener] = {}
 _listener_lock = threading.Lock()
 _listener_counter = itertools.count(1)
+# Per-bar key for the overall aggregator. A monotonic counter, not id(self):
+# CPython recycles a freed object's address for the next same-shaped object, so
+# consecutive per-file bars routinely shared an id and the next bar's first
+# update overwrote bytes the finished file had already earned (#2936).
+_bar_key_counter = itertools.count(1)
 _installed = False
 _install_lock = threading.Lock()
 
@@ -184,6 +189,12 @@ def install() -> None:
                     return lambda s: None
 
             def __init__(self, *args, **kwargs):
+                # Allocate the aggregator key FIRST: tqdm's own __init__ calls
+                # display(), which reaches _feed_sink() before any attribute
+                # set after super().__init__() would exist. Stable for this
+                # bar's whole life and never reused by a later bar (#2936).
+                self._bar_key = next(_bar_key_counter)
+
                 if 'file' in kwargs and kwargs['file'] is not None and not getattr(kwargs['file'], "_is_safe_wrapper", False):
                     kwargs['file'] = SafeFileWrapper(kwargs['file'])
                 try:
@@ -242,9 +253,11 @@ def install() -> None:
 
                 Passes the tqdm `unit` so the aggregator can tell a byte bar
                 (unit 'B') from the "Fetching N files" count bar, and a stable
-                per-bar key (id(self)) because every per-file byte bar shares
-                the default desc 'download' under Xet — keying by desc would
-                collapse them into one.
+                per-bar key because every per-file byte bar shares the default
+                desc 'download' under Xet — keying by desc would collapse them
+                into one. The key is a counter allocated per bar, not id(self):
+                CPython reuses a freed bar's address, which made two files
+                share a key and erase each other's bytes (#2936).
                 """
                 sink = _byte_sink
                 if sink is None:
@@ -254,7 +267,7 @@ def install() -> None:
                     return
                 try:
                     unit = getattr(self, "unit", None)
-                    sink(rid, id(self), unit, int(done or 0), int(total or 0), complete)
+                    sink(rid, self._bar_key, unit, int(done or 0), int(total or 0), complete)
                 except Exception:
                     pass
 
