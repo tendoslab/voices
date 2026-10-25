@@ -581,6 +581,24 @@ def _numbers_to_words(text: str, lang: str) -> str:
 
         text = _CURRENCY_RE.sub(lambda m: _safe(m, _currency), text)
 
+    def _spoken_decimal(whole: str, fraction: str) -> str:
+        spoken = num2words(float(f"{whole}.{fraction}"), lang=lang)
+        # A float has no trailing zeros: "3.0" read as "three" and "2.50"
+        # as "two point five". Speak the zeros that were written.
+        # Unicode digits (fullwidth, Arabic-Indic) count as zeros too.
+        ascii_fraction = "".join(str(unicodedata.digit(c, 0)) for c in fraction)
+        zeros = len(ascii_fraction) - len(ascii_fraction.rstrip("0"))
+        if zeros:
+            from num2words import CONVERTER_CLASSES
+            point = getattr(CONVERTER_CLASSES.get(lang), "pointword", None)
+            if not isinstance(point, str):
+                return spoken
+            zero = num2words(0, lang=lang)
+            if zeros == len(ascii_fraction):
+                spoken = f"{num2words(int(whole), lang=lang)} {point}"
+            spoken += f" {zero}" * zeros
+        return spoken
+
     percent_word = _PERCENT_WORD.get(lang)
     if percent_word:
         def _percent(m: re.Match) -> str:
@@ -589,10 +607,10 @@ def _numbers_to_words(text: str, lang: str) -> str:
                 fraction = raw.split(".", 1)[1]
                 if lang not in _DECIMAL_LANGS or _thousands_group(lang, fraction):
                     return m.group(0)
-                value: object = float(raw)
+                spoken = _spoken_decimal(raw.split(".", 1)[0], fraction)
             else:
-                value = int(raw)
-            return f"{num2words(value, lang=lang)} {percent_word}"
+                spoken = num2words(int(raw), lang=lang)
+            return f"{spoken} {percent_word}"
 
         text = _PERCENT_RE.sub(lambda m: _safe(m, _percent), text)
 
@@ -601,22 +619,7 @@ def _numbers_to_words(text: str, lang: str) -> str:
             whole, fraction = m.group(1), m.group(2)
             if _thousands_group(lang, fraction):
                 return m.group(0)
-            spoken = num2words(float(f"{whole}.{fraction}"), lang=lang)
-            # A float has no trailing zeros: "3.0" read as "three" and "2.50"
-            # as "two point five". Speak the zeros that were written.
-            # Unicode digits (fullwidth, Arabic-Indic) count as zeros too.
-            ascii_fraction = "".join(str(unicodedata.digit(c, 0)) for c in fraction)
-            zeros = len(ascii_fraction) - len(ascii_fraction.rstrip("0"))
-            if zeros:
-                from num2words import CONVERTER_CLASSES
-                point = getattr(CONVERTER_CLASSES.get(lang), "pointword", None)
-                if not isinstance(point, str):
-                    return spoken
-                zero = num2words(0, lang=lang)
-                if zeros == len(ascii_fraction):
-                    spoken = f"{num2words(int(whole), lang=lang)} {point}"
-                spoken += f" {zero}" * zeros
-            return spoken
+            return _spoken_decimal(whole, fraction)
 
         text = _DECIMAL_RE.sub(lambda m: _safe(m, _decimal), text)
 

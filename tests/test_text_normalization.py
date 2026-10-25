@@ -64,6 +64,10 @@ _CHANGE_CASES = [
     # decimal here (the same digits are a thousands group in German, below).
     ("English", "pi is 3.141 here", "pi is three point one four one here"),
     ("English", "battery at 50%", "battery at fifty percent"),
+    # ...and so are the ones written in a percentage.
+    ("English", "rates rose 2.50% today", "rates rose two point five zero percent today"),
+    ("English", "inflation was 3.0%", "inflation was three point zero percent"),
+    ("German", "etwa 3.50%", "etwa drei Komma fünf null Prozent"),
     ("English", "back in 1984", "back in nineteen eighty-four"),
     ("English", "I have 3.", "I have three."),
     # EN abbreviations (guards: titles need a following capitalized word)
