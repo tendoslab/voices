@@ -1415,6 +1415,7 @@ def test_torch_pins_follow_the_host(monkeypatch, family, platform, suffix, index
     assert spec.torch_pins
     argvs = _capture_install_argvs(monkeypatch, family=family)
     monkeypatch.setattr(si.sys, "platform", platform)
+    monkeypatch.setattr(si, "_host_machine", lambda: "x86_64")
 
     si._step_install_deps(spec, si._new_job("voxcpm2"))
 
@@ -1426,6 +1427,44 @@ def test_torch_pins_follow_the_host(monkeypatch, family, platform, suffix, index
         assert pip[pip.index("--extra-index-url") + 1] == index
     else:
         assert "--extra-index-url" not in pip
+
+
+_TORCH_PINNED_SPECS = sorted(s for s in si.SPECS if si.SPECS[s].torch_pins)
+
+
+@pytest.mark.parametrize("engine_id", _TORCH_PINNED_SPECS)
+@pytest.mark.parametrize(
+    ("family", "suffix", "index"),
+    [
+        ("cuda", "+cu128", "https://download.pytorch.org/whl/cu128"),
+        ("cpu", "+cpu", "https://download.pytorch.org/whl/cpu"),
+    ],
+)
+@pytest.mark.parametrize("machine", ["aarch64", "arm64"])
+def test_linux_arm64_forces_only_torch_to_a_local_build(
+    monkeypatch, engine_id, family, suffix, index, machine
+):
+    """PyTorch's cu128 and CPU indexes ship aarch64 torchaudio 2.7.0 without a
+    local label, so the forced ``torchaudio==2.7.0+cu128`` / ``+cpu`` pin made
+    CosyVoice's install unresolvable on Linux ARM64 (NVIDIA or CPU-only). Only
+    torch takes the local build there; companions take the labelled build
+    where it exists, else the plain wheel."""
+    spec = si.get_spec(engine_id)
+    argvs = _capture_install_argvs(monkeypatch, family=family)
+    monkeypatch.setattr(si.sys, "platform", "linux")
+    monkeypatch.setattr(si, "_host_machine", lambda: machine)
+
+    si._step_install_deps(spec, si._new_job(engine_id))
+
+    pip = next(a for a in argvs if a[1:3] == ["pip", "install"])
+    for pin in spec.torch_pins:
+        if pin.startswith("torch=="):
+            assert f"{pin}{suffix}" in pip
+        else:
+            assert pin in pip
+            assert f"{pin}{suffix}" not in pip
+    assert pip.count("--extra-index-url") == 1
+    assert pip[pip.index("--extra-index-url") + 1] == index
 
 
 # ── ROCm hosts take a ROCm torch, not the upstream's CUDA build (#2371) ────

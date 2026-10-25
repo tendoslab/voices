@@ -245,13 +245,40 @@ def _host_family() -> str:
         return "cpu"
 
 
+def _host_machine() -> str:
+    """This host's CPU architecture, lower-cased (``x86_64``, ``aarch64``…)."""
+    import platform
+    return platform.machine().lower()
+
+
+def _local_build_pins(spec: "SidecarSpec", suffix: str) -> list[str]:
+    """The spec's torch pins forced to one local build (``+cu128``/``+cpu``).
+
+    On Linux ARM64 only torch is forced: PyTorch's cu128 and CPU indexes ship
+    aarch64 torchaudio 2.7.0 without a local label, so a forced ``+cu128`` or
+    ``+cpu`` torchaudio pin cannot resolve. An unlabelled pin is still
+    satisfied by the labelled torch under PEP 440, but which index its wheel
+    comes from is not guaranteed: on a version tie uv may take PyPI's build.
+
+    This covers the cu128 and CPU branches only. The ROCm path forces its own
+    local tags in ``_rocm_pin_args`` and is not handled here.
+    """
+    arm_linux = sys.platform == "linux" and _host_machine() in ("aarch64", "arm64")
+    # Matches exact ``torch==`` pins only, the format every spec uses today; a
+    # looser specifier (``torch>=…``) would be left unlabelled on ARM64.
+    return [
+        pin if arm_linux and not pin.startswith("torch==") else f"{pin}{suffix}"
+        for pin in spec.torch_pins
+    ]
+
+
 def _torch_pin_args(spec: "SidecarSpec") -> list[str]:
     from core.torch_indexes import UV_PIP_CPU_ARGS, UV_PIP_CU128_ARGS
 
     if _host_family() == "cuda":
-        return [f"{pin}+cu128" for pin in spec.torch_pins] + list(UV_PIP_CU128_ARGS)
+        return _local_build_pins(spec, "+cu128") + list(UV_PIP_CU128_ARGS)
     if sys.platform in ("win32", "linux"):
-        return [f"{pin}+cpu" for pin in spec.torch_pins] + list(UV_PIP_CPU_ARGS)
+        return _local_build_pins(spec, "+cpu") + list(UV_PIP_CPU_ARGS)
     return list(spec.torch_pins)
 
 

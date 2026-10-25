@@ -38,7 +38,9 @@ It differs from upstream's own setup:
 - **PyTorch 2.7.0.** The CUDA 12.8 build on an NVIDIA GPU, the CPU build on
   other Windows and Linux machines, the regular build on Apple Silicon.
   Upstream's 2.3.1 exists only for CUDA 12.1 and cannot run on RTX 50-series
-  GPUs.
+  GPUs. On Linux ARM64 (for example DGX Spark) only torch takes that build
+  and torchaudio installs the plain 2.7.0 wheel, because PyTorch publishes
+  its ARM64 torchaudio 2.7.0 without a `+cu128` or `+cpu` label.
 - **Leaner dependencies.** No TensorRT, DeepSpeed or GPU onnxruntime, and no
   third-party package index. Upstream uses them for extra speed on Linux;
   synthesis works without them. PyWORLD requires a C++ compiler: Xcode Command
