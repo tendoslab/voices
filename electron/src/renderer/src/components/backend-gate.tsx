@@ -1,4 +1,5 @@
 import { SetupGate } from './setup-gate';
+import { SetupProgressCard } from './setup-progress-card';
 import { ReportBug } from './report-bug';
 import { CrashDetails } from './crash-details';
 import {
@@ -9,9 +10,7 @@ import {
   type BackendPillState,
 } from './backend-status-pill';
 import {
-  CheckIcon,
   ChevronDownIcon,
-  CircleIcon,
   ClipboardCopyIcon,
   RotateCcwIcon,
   DownloadIcon,
@@ -54,7 +53,6 @@ interface BackendGateProps {
 
 const RELEASES_URL = 'https://github.com/debpalash/VoiceStudio/releases/latest';
 const RETRYABLE = new Set(['crashed', 'failed', 'port_in_use']);
-const SETUP_PHASES = ['checking', 'downloading_uv', 'installing_deps', 'verifying'] as const;
 
 function useElapsedSeconds(elapsedMs: number, running: boolean): number {
   // The bridge only pushes a status on change; tick locally so the counter moves.
@@ -69,21 +67,6 @@ function useElapsedSeconds(elapsedMs: number, running: boolean): number {
     return () => window.clearInterval(id);
   }, [elapsedMs, running]);
   return seconds;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 ** 3)
-    return `${(bytes / 1024 ** 3).toFixed(bytes < 10 * 1024 ** 3 ? 1 : 0)} GB`;
-  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
-  return `${Math.max(0, Math.round(bytes / 1024))} KB`;
-}
-
-function formatEta(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return minutes > 0
-    ? `${minutes}:${String(remainder).padStart(2, '0')}`
-    : `0:${String(remainder).padStart(2, '0')}`;
 }
 
 /** Backend output is attacker-influenced text: repair requests carry it only as
@@ -129,23 +112,6 @@ export function BackendGate({ children, repairDock }: BackendGateProps) {
   const wrongArchitecture = setup && status.setupIssue === 'wrong_architecture';
   const running = status.stage === 'starting' || status.stage === 'attaching' || installing;
   const seconds = useElapsedSeconds(status.elapsedMs, running);
-  const setupPhaseIndex = status.setupPhase ? SETUP_PHASES.indexOf(status.setupPhase) : 0;
-  const latestActivity = installing ? status.logTail.at(-1) : undefined;
-  const progress = status.setupProgress;
-  const downloadedBytes = progress?.downloadedBytes ?? 0;
-  const remainingBytes = Math.max(0, (progress?.totalBytes ?? 0) - downloadedBytes);
-  const downloadsComplete = Boolean(
-    progress?.downloadsComplete || progress?.preparedPackages || progress?.installedPackages,
-  );
-  const downloadPercent = progress?.totalBytes
-    ? downloadsComplete
-      ? 100
-      : Math.min(100, (downloadedBytes / progress.totalBytes) * 100)
-    : 0;
-  const dependencyCount =
-    progress?.installedPackages ?? progress?.preparedPackages ?? progress?.resolvedPackages;
-  const transferLive =
-    progress?.transferUpdatedAt !== undefined && Date.now() - progress.transferUpdatedAt < 15_000;
 
   const recovering = reachedReady && status.stage === 'failed' && status.managed;
   // A live-but-busy backend (#2430) is not a gate. The process is running the
@@ -179,11 +145,7 @@ export function BackendGate({ children, repairDock }: BackendGateProps) {
   const failed = RETRYABLE.has(status.stage);
   // One named cause and one primary action, instead of a raw error to decode.
   const cause = failed && !setup ? backendFailureCause(status.message) : null;
-  const pillState: BackendPillState = failed
-    ? 'failed'
-    : reachedReady
-      ? 'recovering'
-      : 'starting';
+  const pillState: BackendPillState = failed ? 'failed' : reachedReady ? 'recovering' : 'starting';
   const causeAction = cause ? BACKEND_CAUSE_ACTION[cause] : 'retry';
   const stageText =
     installing && status.setupPhase
@@ -264,8 +226,13 @@ export function BackendGate({ children, repairDock }: BackendGateProps) {
         className="studio-scrollbar min-h-0 flex-1 overflow-y-auto p-6"
       >
         <div className="mx-auto flex min-h-full w-full max-w-lg shrink-0 flex-col items-center justify-start gap-4 py-[clamp(1.5rem,8vh,5rem)] text-center">
-          {setup ? (
-            <DownloadIcon className="size-8 text-primary" aria-hidden="true" />
+          {setup || installing ? (
+            <div
+              className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20"
+              aria-hidden="true"
+            >
+              <DownloadIcon className="size-6" />
+            </div>
           ) : failed ? (
             <div
               className="flex size-10 items-center justify-center rounded-full bg-destructive/10 text-lg font-semibold text-destructive"
@@ -318,124 +285,20 @@ export function BackendGate({ children, repairDock }: BackendGateProps) {
                 <RemoteBackendSettings />
               </div>
             ) : null}
-            {installing ? (
-              <p className="font-mono text-xs text-muted-foreground tabular-nums">
-                {t('backend.elapsed', { seconds })}
+            {running ? (
+              <p className="mx-auto max-w-sm text-sm text-muted-foreground">
+                {t('backend.first_run_hint')}
               </p>
             ) : null}
           </div>
           {installing ? (
-            <div className="w-full rounded-2xl border border-border/60 bg-card/55 p-3 shadow-sm backdrop-blur-xl">
-              <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-1" aria-label={stageText}>
-                {SETUP_PHASES.map((phase, index) => {
-                  const complete = index < setupPhaseIndex;
-                  const current = index === setupPhaseIndex;
-                  return (
-                    <li key={phase} className="min-w-0">
-                      <div
-                        className={cn(
-                          'mb-2 h-1 rounded-full bg-border/70 transition-colors',
-                          (complete || current) && 'bg-primary',
-                        )}
-                      />
-                      <div className="flex flex-col items-center gap-1 px-1">
-                        {complete ? (
-                          <CheckIcon className="size-4 text-primary" aria-hidden="true" />
-                        ) : current ? (
-                          <Spinner className="size-4 text-primary" aria-hidden="true" />
-                        ) : (
-                          <CircleIcon
-                            className="size-3.5 text-muted-foreground/50"
-                            aria-hidden="true"
-                          />
-                        )}
-                        <span
-                          className={cn(
-                            'text-xs leading-snug text-muted-foreground',
-                            current && 'font-medium text-foreground',
-                          )}
-                        >
-                          {t(`bootstrap.${phase}`)}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-              {status.setupPhase === 'installing_deps' && progress ? (
-                <div className="mt-4 border-t border-border/50 pt-3 text-left">
-                  {progress.totalBytes ? (
-                    <>
-                      <div
-                        className="h-1.5 overflow-hidden rounded-full bg-muted"
-                        role="progressbar"
-                        aria-label={stageText}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={Math.round(downloadPercent)}
-                      >
-                        <div
-                          className="h-full rounded-full bg-primary transition-[width] duration-300"
-                          style={{ width: `${downloadPercent}%` }}
-                        />
-                      </div>
-                      {!downloadsComplete ? (
-                        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11px] tabular-nums text-muted-foreground sm:grid-cols-4">
-                          <span>
-                            {formatBytes(downloadedBytes)} / ~{formatBytes(progress.totalBytes)}
-                          </span>
-                          <span>
-                            {t('bootstrap.remaining_amount', {
-                              amount: formatBytes(remainingBytes),
-                            })}
-                          </span>
-                          <span>
-                            {transferLive && progress.bytesPerSecond
-                              ? t('bootstrap.download_rate', {
-                                  rate: formatBytes(progress.bytesPerSecond),
-                                })
-                              : '—'}
-                          </span>
-                          <span>
-                            {transferLive && progress.etaSeconds !== undefined
-                              ? t('bootstrap.eta', {
-                                  time: formatEta(progress.etaSeconds),
-                                })
-                              : '—'}
-                          </span>
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-                  {dependencyCount ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {t('bootstrap.dependencies_resolved', {
-                        count: dependencyCount,
-                      })}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-              {status.setupPhase === 'installing_deps' && progress?.activePackage ? (
-                <p className="mt-3 flex min-w-0 items-center gap-2 rounded-lg bg-background/45 px-3 py-2 text-left font-mono text-[11px] text-muted-foreground">
-                  <Spinner className="size-3 shrink-0 text-primary" aria-hidden="true" />
-                  <span className="truncate">{progress.activePackage}</span>
-                </p>
-              ) : status.setupPhase === 'installing_deps' && downloadsComplete ? (
-                <p className="mt-3 flex min-w-0 items-center gap-2 rounded-lg bg-background/45 px-3 py-2 text-left text-xs text-muted-foreground">
-                  <Spinner className="size-3 shrink-0 text-primary" aria-hidden="true" />
-                  <span>{t('bootstrap.downloads_complete')}</span>
-                </p>
-              ) : latestActivity ? (
-                <p
-                  className="mt-3 truncate rounded-lg bg-background/45 px-3 py-2 text-left font-mono text-[11px] text-muted-foreground"
-                  title={latestActivity}
-                  aria-live="polite"
-                >
-                  {latestActivity}
-                </p>
-              ) : null}
-            </div>
+            <SetupProgressCard
+              status={status}
+              seconds={seconds}
+              label={stageText}
+              cancelling={restarting}
+              onCancel={retry}
+            />
           ) : null}
           {setup ? (
             <>
@@ -629,14 +492,6 @@ export function BackendGate({ children, repairDock }: BackendGateProps) {
               ) : null}
             </>
           ) : null}
-          {installing ? (
-            <Button variant="outline" onClick={retry}>
-              {t('common.cancel')}
-            </Button>
-          ) : null}
-          {running ? (
-            <p className="max-w-sm text-xs text-muted-foreground">{t('backend.first_run_hint')}</p>
-          ) : null}
           {failed ? (
             <div className="flex flex-wrap justify-center gap-2">
               {causeAction === 'choose_folder' ? (
@@ -690,7 +545,7 @@ export function BackendGate({ children, repairDock }: BackendGateProps) {
               request={`Resume and repair the interrupted VoiceStudio runtime setup. Current issue: ${status.setupIssue || 'unknown'}.${delimitedDiagnostic(status.message)} Use the Electron runtime setup control, wait for completion, and verify backend health. Do not clean reinstall or change user consent.`}
             />
           ) : null}
-          {status.logTail.length > 0 || (cause && status.message) ? (
+          {!installing && (status.logTail.length > 0 || (cause && status.message)) ? (
             <Collapsible open={logOpen} onOpenChange={setLogOpen} className="w-full">
               <CollapsibleTrigger className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
                 <ChevronDownIcon
