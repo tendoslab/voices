@@ -153,6 +153,9 @@ export function toGenerateForm(input: CloneGenerateInput): FormData {
 
   if (input.profileId) {
     form.append('profile_id', input.profileId);
+    // A manual correction overrides the saved transcript. Omit blank input so
+    // whitespace cannot shadow the profile's existing reference text.
+    if (input.refText?.trim()) form.append('ref_text', input.refText);
   } else if (input.refAudio) {
     const name =
       input.refAudioName ||

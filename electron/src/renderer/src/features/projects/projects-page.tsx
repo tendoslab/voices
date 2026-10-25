@@ -467,6 +467,8 @@ export function ProjectsPage() {
       text: take.text,
       language: take.language || 'Auto',
       selectedProfileId: take.profile_id,
+      // Never carry the previous voice's transcript onto the reused take's voice.
+      refText: profiles.data?.find((profile) => profile.id === take.profile_id)?.ref_text ?? '',
       instruct: take.instruct || '',
     });
     await navigate({ to: '/clone' });

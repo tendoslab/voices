@@ -30,6 +30,7 @@ describe('take metadata', () => {
       language: 'French',
       instruct: '',
       selectedProfileId: 'voice',
+      refText: '',
     });
   });
   it.each([

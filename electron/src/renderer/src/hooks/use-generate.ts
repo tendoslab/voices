@@ -339,7 +339,19 @@ function useGenerateController(): UseGenerateClone {
           language: design?.language ?? settings.language,
           profileId: design ? (design.profileId ?? null) : settings.selectedProfileId,
           refAudio: design || settings.selectedProfileId ? null : reference.file,
-          refText: design ? undefined : settings.refText,
+          refText: design
+            ? undefined
+            : settings.selectedProfileId
+              ? // A saved voice already carries its transcript; send only a manual
+                // correction so unchanged stored text keeps the server's own path.
+                settings.refText.trim() &&
+                settings.refText !==
+                  (queryClient
+                    .getQueryData<Profile[]>(queryKeys.profiles)
+                    ?.find((profile) => profile.id === settings.selectedProfileId)?.ref_text ?? '')
+                ? settings.refText
+                : undefined
+              : settings.refText,
           instruct,
           instructVocabulary,
           designRecipe: design?.recipe,

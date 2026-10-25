@@ -47,18 +47,22 @@ export function takeSettings(item: HistoryItem): Partial<TakeSettings> {
     instruct: item.instruct || '',
     selectedProfileId: item.profile_id,
   };
+  // The previous voice's transcript must never ride along with this take's
+  // voice; blank means the saved profile's own transcript is used.
+  const noCarriedTranscript = { refText: '' };
   try {
     const raw = JSON.parse(localStorage.getItem(key) ?? '{}')?.[item.id];
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fallback;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+      return { ...noCarriedTranscript, ...fallback };
     // Validate every generation control with the settings store's own rules,
     // so a control added to CloneSettings is restored without a second list.
     const safe: Record<string, unknown> = {};
     for (const name of Object.keys(DEFAULT_CLONE_SETTINGS) as Array<keyof CloneSettings>)
       if (!PREFERENCES.has(name) && name in raw && acceptsCloneSetting(name, raw[name]))
         safe[name] = raw[name];
-    return { ...safe, ...fallback };
+    return { ...noCarriedTranscript, ...safe, ...fallback };
   } catch {
-    return fallback;
+    return { ...noCarriedTranscript, ...fallback };
   }
 }
 export async function reuseTake(item: HistoryItem) {
