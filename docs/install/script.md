@@ -5,14 +5,14 @@ On Windows, download the `VoiceStudio-Electron-…-win-x64.exe` installer (or
 `…-win-arm64.exe` on a Snapdragon/ARM PC) from
 [Releases](https://github.com/debpalash/VoiceStudio/releases).
 
-Or use PowerShell (the endpoint detects PowerShell's user agent):
+Or use PowerShell. Use the `.ps1` URL: the bare `/install` URL is not guaranteed to detect PowerShell and can return the shell script (#2973):
 
 ```powershell
-irm https://voicestudio.sh/install | iex
-$env:VOICESTUDIO_VERSION='X.Y.Z'; irm https://voicestudio.sh/install | iex
+irm https://voicestudio.sh/install.ps1 | iex
+$env:VOICESTUDIO_VERSION='X.Y.Z'; irm https://voicestudio.sh/install.ps1 | iex
 # Clear a previous version override before selecting main:
 Remove-Item Env:VOICESTUDIO_VERSION -ErrorAction SilentlyContinue
-$env:VOICESTUDIO_INSTALL_MODE='main'; irm https://voicestudio.sh/install | iex
+$env:VOICESTUDIO_INSTALL_MODE='main'; irm https://voicestudio.sh/install.ps1 | iex
 ```
 
 On ARM64 Windows the script installs the native ARM64 build and falls back to the x64 build when a release has none. Windows main builds also need Visual Studio C++ build tools (plus the ARM64 build tools on ARM). The script builds

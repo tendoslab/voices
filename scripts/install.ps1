@@ -5,9 +5,9 @@ $vsVersion = $Version
 if ($Help) {
     Write-Output @'
 VoiceStudio Electron installer (Windows x64 and ARM64)
-  irm https://voicestudio.sh/install | iex
-  $env:VOICESTUDIO_VERSION='X.Y.Z'; irm https://voicestudio.sh/install | iex
-  $env:VOICESTUDIO_INSTALL_MODE='main'; irm https://voicestudio.sh/install | iex
+  irm https://voicestudio.sh/install.ps1 | iex
+  $env:VOICESTUDIO_VERSION='X.Y.Z'; irm https://voicestudio.sh/install.ps1 | iex
+  $env:VOICESTUDIO_INSTALL_MODE='main'; irm https://voicestudio.sh/install.ps1 | iex
 File usage: .\install.ps1 [-Version X.Y.Z] [-Main | -Source] [-Silent]
 Uninstall: .\install.ps1 -Uninstall (preserves user data)
   $env:VOICESTUDIO_INSTALL_MODE='uninstall'; irm https://voicestudio.sh/install.ps1 | iex

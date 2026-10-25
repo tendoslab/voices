@@ -73,7 +73,7 @@ curl -fsSL https://voicestudio.sh/install | sh -s -- --main
 curl -fsSL https://voicestudio.sh/install | sh -s -- --uninstall
 ```
 
-On Windows, run `irm https://voicestudio.sh/install | iex` in PowerShell.
+On Windows, run `irm https://voicestudio.sh/install.ps1 | iex` in PowerShell.
 
 If `voicestudio.sh/install` is unreachable or returns 404, run the same script
 straight from the repository, or clone it and run `scripts/install.sh`:
