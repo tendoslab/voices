@@ -147,6 +147,16 @@ class SidecarSpec:
     # differently (editable, editable with an extra, a requirements file, a
     # constraints file); the default is the editable install IndexTTS uses.
     install_args: tuple[str, ...] = ("-e", "{checkout}")
+    # Windows-only variant of install_args, for an engine whose default path
+    # compiles C++ extensions from source while the pinned version publishes
+    # a Windows wheel that doesn't need a toolchain (cosyvoice's PyWORLD,
+    # #3423). Empty tuple = no variant; install_args run on every host.
+    install_args_windows: tuple[str, ...] = ()
+    # Platforms where install_args (never install_args_windows) compile
+    # C++ extensions FROM SOURCE ("darwin", "linux"): preflight verifies a
+    # toolchain before any download, so the failure is a fix-it instruction
+    # instead of a mid-install compiler error.
+    compiles_on: tuple[str, ...] = ()
     # Add PyTorch's CUDA index on a CUDA host. Plain PyPI torch is CPU-only on
     # Windows, and `+cuNNN` local-version pins exist nowhere else.
     uses_cuda_index: bool = False
@@ -234,6 +244,26 @@ def _dots_invalidate() -> None:
 def _dots_installed() -> bool:
     from engines.dots_tts.bootstrap import is_dots_tts_installed
     return is_dots_tts_installed()
+
+
+def _cosyvoice_invalidate() -> None:
+    from engines.cosyvoice_subprocess import invalidate
+    invalidate()
+
+
+def _cosyvoice_installed() -> bool:
+    """A healthy CosyVoice install of ANY kind the engine can actually run.
+
+    One of: the app-managed venv (marker-checked), a user-managed clone the
+    env var points at with its own ``.venv`` inside (the self-installed path
+    #3423 leaves unrecognised), or an app-environment source install made
+    with ``uv sync --extra cosyvoice``. Cheap file checks only.
+    """
+    from engines.cosyvoice_subprocess import managed_python, user_venv_python
+
+    if managed_python() is not None or user_venv_python() is not None:
+        return True
+    return _in_app_env("cosyvoice")()
 
 
 def _host_family() -> str:
@@ -678,7 +708,13 @@ SPECS: dict[str, SidecarSpec] = {
         ),
         venv_args=("--python", "3.10"),
         install_args=("-r", _COSYVOICE_REQUIREMENTS, "{checkout}/third_party/PyWorld"),
-        install_revision="security-floors-v3",
+        # Linux/macOS build the pinned PyWORLD source (no wheel exists); the
+        # source build needs a C++ toolchain, which preflight requires up
+        # front. On Windows the cp310 wheel of pyworld==0.3.5 removes the
+        # MSVC Build Tools requirement, the wall most reporters hit (#3423).
+        install_args_windows=("-r", _COSYVOICE_REQUIREMENTS, "pyworld==0.3.5"),
+        compiles_on=("darwin", "linux"),
+        install_revision="pyworld-win-wheel-v1",
         torch_pins=("torch==2.7.0", "torchaudio==2.7.0"),
         weights_repo_id="FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
         weights_revision="29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
@@ -696,7 +732,8 @@ SPECS: dict[str, SidecarSpec] = {
         required_bytes=14 * _GIB,
         weights_bytes=6 * _GIB,
         dependency_bytes=7 * _GIB,
-        installed_probe=_in_app_env("cosyvoice"),
+        installed_probe=_cosyvoice_installed,
+        invalidate=_cosyvoice_invalidate,
         host_supported=_no_intel_mac(
             "CosyVoice 3 needs a PyTorch version that has no Intel Mac build."
         ),
@@ -1321,6 +1358,55 @@ def _run_install(spec: SidecarSpec, job: dict) -> None:
         job["finished_at"] = time.time()
 
 
+def _compiler_available(host: str) -> bool:
+    """Whether *host* has a C++ toolchain for source-built extensions.
+
+    macOS's ``/usr/bin/clang`` is a stub that fails at compile time while
+    Command Line Tools are absent, so file presence is not evidence; the OS
+    is asked instead. Windows is never consulted — its variant of the install
+    (install_args_windows) uses wheels.
+    """
+    if host == "darwin":
+        if Path("/Library/Developer/CommandLineTools/usr/bin/clang").is_file():
+            return True
+        try:
+            probe = subprocess.run(
+                ["xcode-select", "-p"], capture_output=True, timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        return probe.returncode == 0
+    return any(shutil.which(name) for name in ("cc", "gcc", "clang", "c++"))
+
+
+def _compiler_gate(spec: SidecarSpec) -> None:
+    """Fail BEFORE the download when the install path compiles from source.
+
+    The C++ build of an extension (cosyvoice's PyWORLD) needs a toolchain a
+    fresh machine does not have. Letting uv discover that mid-install hides
+    the fix inside a compiler traceback; the preflight raises the actionable
+    sentence instead (#3423 — "people who don't code can't finish the steps").
+    """
+    if sys.platform not in spec.compiles_on:
+        return
+    if _compiler_available(sys.platform):
+        return
+    fix = (
+        "Install Xcode Command Line Tools (xcode-select --install), then "
+        "retry the install in Model Catalogue → Engines."
+        if sys.platform == "darwin"
+        else "Install the C++ build tools of the distribution (Debian/Ubuntu: "
+             "sudo apt install build-essential; Fedora: sudo dnf install "
+             "gcc-c++; Arch: sudo pacman -S base-devel), then retry the "
+             "install in Model Catalogue → Engines."
+    )
+    raise _StepError(
+        f"{spec.display_name} needs a C++ toolchain to build one of its "
+        f"dependencies, and none was found on this {sys.platform} host.",
+        fix,
+    )
+
+
 def _step_preflight(spec: SidecarSpec, job: dict) -> None:
     if _locate_uv() is None:
         raise _StepError(
@@ -1333,9 +1419,11 @@ def _step_preflight(spec: SidecarSpec, job: dict) -> None:
     if err:
         raise _StepError(err, "Free up disk space (or move VoiceStudio's data directory "
                               "to a larger volume) and retry.")
+    _compiler_gate(spec)
     managed_root(spec).mkdir(parents=True, exist_ok=True)
     _job_step(job, "preflight")["detail"] = "uv found, disk space OK"
-    _log(job, "Preflight OK — uv resolved and enough free disk space.")
+    _log(job, "Preflight OK — uv resolved and enough free disk space." + (
+        " C++ toolchain present." if sys.platform in spec.compiles_on else ""))
 
 
 def _step_fetch_source(spec: SidecarSpec, job: dict) -> None:
@@ -1630,7 +1718,14 @@ def _step_install_deps(spec: SidecarSpec, job: dict) -> None:
     (checkout / _INSTALL_COMPLETE_MARKER).unlink(missing_ok=True)
     uv = _locate_uv()
     _log(job, f"Installing {spec.display_name} into its venv (this can take several minutes) …")
-    target = [_expand(arg, checkout) for arg in spec.install_args]
+    # Windows may install wheels computed for it (install_args_windows) so a
+    # source build never asks for a compiler the host does not ship (#3423).
+    args = (
+        spec.install_args_windows
+        if sys.platform == "win32" and spec.install_args_windows
+        else spec.install_args
+    )
+    target = [_expand(arg, checkout) for arg in args]
     if spec.engine_id == "dots-tts":
         from engines.dots_tts.install import compatible_constraints
         constraint = compatible_constraints(checkout / "constraints" / "recommended.txt")

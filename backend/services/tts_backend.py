@@ -3108,19 +3108,15 @@ class MLXAudioBackend(TTSBackend):
 class CosyVoiceBackend(TTSBackend):
     """FunAudioLLM CosyVoice — multilingual zero-shot TTS (9 langs + 18 dialects).
 
-    Supports v1 (300M), v2 (0.5B), and v3 (0.5B, latest). Installation is
-    non-trivial (git clone --recursive + SoX) so we ship as an optional
-    scaffold: ``is_available()`` reports the missing install cleanly.
+    In-process fallback for a source install made with ``uv sync --extra``
+    in the app's own environment. Everyone else gets CosyVoice through the
+    one-click installer (see engines.cosyvoice_subprocess), which provisions
+    an isolated Python 3.10 venv, builds the pinned PyWORLD source (Linux and
+    macOS; Windows uses its wheel), and downloads the weights.
 
-    Set ``OMNIVOICE_COSYVOICE_MODEL`` to the pretrained model directory path
-    (e.g. ``pretrained_models/Fun-CosyVoice3-0.5B``). The directory must
-    contain the CosyVoice checkpoint files.
-
-    Install:
-        git clone --recursive https://github.com/FunAudioLLM/CosyVoice.git
-        cd CosyVoice && pip install -r requirements.txt
-        # Ubuntu: sudo apt-get install sox libsox-dev
-        # macOS:  brew install sox
+    The model directory resolves from ``OMNIVOICE_COSYVOICE_MODEL``, defaulting
+    to ``pretrained_models/Fun-CosyVoice3-0.5B``. The directory must contain
+    the CosyVoice checkpoint files.
     """
 
     id = "cosyvoice"
@@ -3146,12 +3142,22 @@ class CosyVoiceBackend(TTSBackend):
             from cosyvoice.cli.cosyvoice import AutoModel  # noqa: F401
             return True, "ready"
         except ImportError:
-            return False, (
-                "cosyvoice package not installed. Install from "
-                "https://github.com/FunAudioLLM/CosyVoice "
-                "(git clone --recursive + pip install -r requirements.txt + SoX). "
-                "Then set OMNIVOICE_COSYVOICE_MODEL to your model directory."
+            # This class only runs when NO sidecar interpreter exists (#3423):
+            # the one-click install is the supported path for everyone the
+            # upstream manual steps used to be advertised to.
+            install = (
+                "Install it from Model Catalogue → Engines (one-click: isolated "
+                "environment and model download included)."
             )
+            env_dir = os.environ.get("OMNIVOICE_COSYVOICE_DIR")
+            if env_dir and os.path.isfile(
+                os.path.join(env_dir, "cosyvoice", "cli", "cosyvoice.py")
+            ):
+                return False, (
+                    f"The folder OMNIVOICE_COSYVOICE_DIR points at ({env_dir}) "
+                    "has no ready environment. " + install
+                )
+            return False, "cosyvoice package not installed. " + install
 
     @property
     def sample_rate(self) -> int:
@@ -3713,7 +3719,8 @@ _LAST_ERRORS: dict[str, str] = {}
 _INSTALL_HINTS: dict[str, str] = {
     "omnivoice":     "pip install omnivoice  (bundled — no extra install needed)",
     "omnivoice-subprocess": "No extra install; uses the host OmniVoice install. Opt in with OMNIVOICE_TTS_BACKEND=omnivoice-subprocess (same model in a killable sidecar, for unattended reliability).",
-    "cosyvoice":     "git clone --recursive FunAudioLLM/CosyVoice + pip install -r requirements.txt + SoX",
+    "cosyvoice":     "Install from Model Catalogue → Engines (isolated environment "
+                     "and model download included).",
     "kittentts":     "pip install kittentts  (ONNX, CPU-only, ~80 MB)",
     "mlx-audio":     "pip install mlx-audio  (Apple Silicon only)",
     "voxcpm2":       'pip install "voxcpm>=2.0.3"  (floor: 2.0.3 fixed Apple-Silicon audio quality; CPU/MPS supported, CUDA recommended for speed)',

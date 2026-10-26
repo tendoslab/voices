@@ -289,7 +289,14 @@ def test_managed_install_probes_late_imports_and_restores_dependencies():
     assert 'cosyvoice.dataset.processor' in spec.probe_code
     assert 'matcha.utils' in spec.probe_code
     assert '{checkout}/third_party/PyWorld' in spec.install_args
-    assert spec.install_revision == 'security-floors-v3'
+    # Windows installs the cp310 wheel instead of compiling from source,
+    # so MSVC Build Tools are not required (#3423).
+    assert (
+        'pyworld==0.3.5' in spec.install_args_windows
+        and '{checkout}/third_party/PyWorld' not in spec.install_args_windows
+    )
+    assert spec.compiles_on == ('darwin', 'linux')
+    assert spec.install_revision == 'pyworld-win-wheel-v1'
     sources = {source.path: source for source in spec.extra_sources}
     assert sources['third_party/PyWorld'].revision == 'f31ad88d543fdaebbda2d0c9a5e4d4f991ae0b6c'
     assert sources['third_party/PyWorld/lib/World'].revision == 'd625e7608ca23a870018f01e7c562ac683d9847f'
@@ -370,6 +377,9 @@ def test_load_preserves_legacy_non_qwen_checkout(monkeypatch, tmp_path):
 # completion marker and never receive the change.
 _REQUIREMENTS_BY_REVISION = {
     "security-floors-v3": "10d15c52b78ae41cfd040880f97a3b9b71c2fa2dab9893bceb982fc46b72d9dd",
+    # Comments now document the per-OS PyWORLD provenance: source build on
+    # Linux/macOS, the pyworld==0.3.5 wheel on Windows (#3423). Same pins.
+    "pyworld-win-wheel-v1": "8186dbdd2068f8d7cacc02e6dee8833e59e11e9f11f575c47a602bf8318914fe",
 }
 
 

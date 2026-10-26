@@ -21,8 +21,12 @@
 #   onnxruntime-gpu, wetext (remote normalizer data), and unused web/training
 #   services. Keep gdown, wget and pyarrow: upstream imports them at runtime.
 # - PyWORLD is built separately from a pinned upstream source with its WORLD
-#   submodule. That revision uses importlib.metadata, so pkg_resources and
-#   an obsolete setuptools runtime are not required. A C++ compiler is needed.
+#   submodule on Linux and macOS, where no wheel is published. That revision
+#   uses importlib.metadata, so pkg_resources and an obsolete setuptools
+#   runtime are not required. A C++ compiler is needed there; the installer
+#   checks for one before downloading. On Windows the install uses the
+#   pyworld==0.3.5 cp310 wheel instead, so MSVC Build Tools are not required
+#   (#3423); the Windows variant is applied by the installer itself.
 # - openai-whisper 20231117 -> 20250625: the older release needs
 #   pkg_resources at build time and fails to build. CosyVoice only uses its
 #   mel-spectrogram frontend.

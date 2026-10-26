@@ -41,9 +41,14 @@ It differs from upstream's own setup:
   GPUs.
 - **Leaner dependencies.** No TensorRT, DeepSpeed or GPU onnxruntime, and no
   third-party package index. Upstream uses them for extra speed on Linux;
-  synthesis works without them. PyWORLD requires a C++ compiler: Xcode Command
-  Line Tools on macOS, Visual Studio Build Tools with C++ on Windows, or the
-  distribution’s C++ build tools on Linux. SoX is not needed.
+  synthesis works without them. SoX is not needed.
+- **PyWORLD per platform.** On Windows the install uses the published
+  `pyworld==0.3.5` wheel, so MSVC Build Tools are not required. Linux and
+  macOS build the pinned PyWORLD source, which needs a C++ toolchain —
+  Xcode Command Line Tools on macOS, the distribution's C++ build tools on
+  Linux — and the install checks for one before downloading anything, so a
+  missing toolchain fails with the fix-it instruction instead of a compiler
+  traceback mid-download.
 - **Patched dependencies.** Where upstream pins a release with a published
   security advisory (diffusers, hydra-core, lightning, modelscope, onnx,
   protobuf, transformers), the install uses the fixed release. That set was
@@ -77,6 +82,16 @@ working installation in place. Before starting VoiceStudio, set
 `OMNIVOICE_COSYVOICE_MODEL` to its usable model directory through the source
 checkout's environment or project `.env` file.
 
+A clone you keep outside VoiceStudio can also run as its own sidecar: point
+`OMNIVOICE_COSYVOICE_DIR` at the checkout and keep a `.venv` directory inside
+it with CosyVoice's dependencies installed. VoiceStudio spawns that
+environment directly, so the dependencies cannot live in a system or Conda
+interpreter — only inside the clone's `.venv`. When the folder is set but has
+no such environment, the engine row says exactly that and points at the
+one-click install above, not at the upstream manual steps. The app never
+provisions or rewrites a user-managed clone; a complete managed install and
+your own `.venv` keep working side by side.
+
 For upstream setup details, read the
 [official CosyVoice installation guide](https://github.com/QwenAudio/CosyVoice#install).
 Those steps create a standalone CosyVoice environment. Prefer the managed
@@ -91,11 +106,10 @@ Include these facts in a support question or bug report:
    selecting **Re-check**.
 3. The CosyVoice lines from **Settings > Logs > Backend** immediately after
    that check.
-4. On Windows, the output of `where.exe sox` in PowerShell.
-
-These facts distinguish a downloaded-model state from a missing Python runtime,
-missing SoX executable, or incorrect model directory. Do not delete a model
-cache or reinstall dependencies until the log identifies which state failed.
+These facts distinguish a downloaded-model state from a missing Python runtime
+or incorrect model directory. Do not delete a model cache or reinstall
+dependencies until the log identifies which state failed. SoX is not part of
+CosyVoice's runtime and never the cause of an unavailable engine here.
 
 The public report that exposed the misleading installed state is
 [Discussion 1631](https://github.com/debpalash/VoiceStudio/discussions/1631).
