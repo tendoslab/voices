@@ -101,6 +101,11 @@ The backend retains voice references only where their timing overlaps the new cu
 Malformed, overlapping, or duration-clamped cue counts remain visible in the sidebar.
 Failed imports preserve the current edits. Generated track buttons clear on successful
 replacement to avoid presenting older audio as the new subtitles' output.
+Ruby pronunciation guides in SRT/VTT captions are excluded from the spoken text
+in Dub and Stories: `<ruby>read<rt>reed</rt></ruby>` speaks only "read".
+Nested annotation containers and fallback parentheses are excluded too; unchanged
+Dub subtitle exports retain the original ruby markup. An unclosed annotation
+ends at the enclosing ruby or cue boundary, so it cannot hide the next cue.
 URL import runs only after clicking Ingest; it uses the backend's existing yt-dlp
 pipeline. URL imports (here and in the voice gallery) accept only `http://` and
 `https://` links and refuse addresses on this computer or the local network,

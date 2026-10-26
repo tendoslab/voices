@@ -233,7 +233,7 @@ def format_cue_timestamp(seconds: float, ms_separator: str) -> str:
 # Cue markup a segment may carry: WebVTT's tags (`<i>`, `<c.yellow>`,
 # `<v Roger>`), SubRip's `<font>` (players skip it) and timestamp tags.
 _CUE_MARKUP_RE = re.compile(
-    r"</?(?:[biu]|c|v|lang|ruby|rt|font)(?=[\s.>])[^<>\n]*>|<(?:\d+:)?\d{2}:\d{2}\.\d{3}>",
+    r"</?(?:[biu]|c|v|lang|ruby|rt|rtc|rp|font)(?=[\s.>])[^<>\n]*>|<(?:\d+:)?\d{2}:\d{2}\.\d{3}>",
     re.IGNORECASE,
 )
 # In WebVTT an unescaped `<` always opens a tag and players drop unknown
@@ -245,12 +245,17 @@ _WEBVTT_TAG_RE = re.compile(r"<[^<>\n]*>")
 # `<font color=...>` and karaoke timestamps. Mirrored in
 # electron/src/shared/utils/importStory.js (CUE_MARKUP); keep the two in step.
 _SRT_MARKUP_RE = re.compile(
-    r"</?(?:[biu]|c|ruby|rt)(?:\.[^\s.<>]+)*>"
+    r"</?(?:[biu]|c|ruby|rt|rtc|rp)(?:\.[^\s.<>]+)*>"
     r"|<(?:v|lang)(?:\.[^\s.<>]+)*[ \t][^<>\n]*>|</(?:v|lang)>"
     r"|<font[ \t][^<>\n]*>|</?font>"
     r"|<(?:\d+:)?\d{2}:\d{2}\.\d{3}>",
     re.IGNORECASE,
 )
+# Ruby elements are markup, but ``rt``/``rtc``/``rp`` also contain fallback
+# speech that must be omitted.  The scanner below handles nesting without a
+# backtracking expression and is mirrored in Electron's story importer.
+_RUBY_TAG_RE = re.compile(r"<(/?)(ruby|rt|rtc|rp)(?=[\s.>/])[^<>\n]*>", re.IGNORECASE)
+_SRT_RUBY_TAG_RE = re.compile(r"</?(?:ruby|rt|rtc|rp)(?:\.[^\s.<>]+)*>", re.IGNORECASE)
 # SubRip/ASS overrides (`{\an8}`, `{\i1}`). A `{` in dialogue has no backslash.
 # The body excludes `{` for the same linear-time reason.
 _ASS_OVERRIDE_RE = re.compile(r"\{\\[^{}\n]*\}")
@@ -259,6 +264,52 @@ _ASS_OVERRIDE_RE = re.compile(r"\{\\[^{}\n]*\}")
 _LINE_BREAK_RE = re.compile(r"<br[ \t]*/?>", re.IGNORECASE)
 # An `&` that does not already start a character reference.
 _BARE_AMPERSAND_RE = re.compile(r"&(?!#\d+;|#[xX][0-9a-fA-F]+;|[A-Za-z][A-Za-z0-9]*;)")
+
+
+def _strip_ruby_annotations(text: str, *, webvtt: bool) -> str:
+    """Drop ruby annotation bodies while keeping the base text.
+
+    Ruby annotations can contain nested ``rt`` elements (usually inside an
+    ``rtc`` container), and malformed captions sometimes omit a closing tag.
+    A small tag scanner keeps the operation linear. An unclosed annotation
+    ends at the enclosing ruby or cue boundary, never in the next cue.
+    """
+    out: list[str] = []
+    annotation = None
+    depth = 0
+    ruby_depth = 0
+    annotation_ruby_depth = 0
+    last = 0
+    for match in _RUBY_TAG_RE.finditer(text):
+        if annotation is None:
+            out.append(text[last:match.start()])
+        tag = match.group(0)
+        if webvtt or _SRT_RUBY_TAG_RE.fullmatch(tag):
+            name = match.group(2).lower()
+            closing = bool(match.group(1))
+            if name == "ruby":
+                if closing:
+                    if ruby_depth == annotation_ruby_depth:
+                        annotation, depth = None, 0
+                    ruby_depth = max(0, ruby_depth - 1)
+                elif not tag.endswith("/>"):
+                    ruby_depth += 1
+            elif closing and name == annotation:
+                depth -= 1
+                if depth == 0:
+                    annotation = None
+            elif ruby_depth and not closing and not tag.endswith("/>"):
+                if annotation is None:
+                    annotation, depth = name, 1
+                    annotation_ruby_depth = ruby_depth
+                elif name == annotation:
+                    depth += 1
+        elif annotation is None:
+            out.append(tag)
+        last = match.end()
+    if annotation is None:
+        out.append(text[last:])
+    return "".join(out)
 
 
 def spoken_cue_text(text: str, *, webvtt: bool = False) -> str:
@@ -271,6 +322,7 @@ def spoken_cue_text(text: str, *, webvtt: bool = False) -> str:
     timestamps) and ASS overrides are removed.
     """
     out = _LINE_BREAK_RE.sub(" ", _ASS_OVERRIDE_RE.sub("", text))
+    out = _strip_ruby_annotations(out, webvtt=webvtt)
     out = (_WEBVTT_TAG_RE if webvtt else _SRT_MARKUP_RE).sub("", out)
     if webvtt:
         out = html.unescape(out)
