@@ -16,11 +16,7 @@ import { ProfileAvatar } from '@/components/profile-avatar';
 import type { Profile } from '@/lib/api/types';
 import { cn } from '@/lib/utils';
 import { PRESETS } from '@shared/utils/constants';
-import {
-  autoProfileId,
-  castParts,
-  castSpeakers,
-} from '@shared/utils/segments';
+import { autoProfileId, castParts, castSpeakers } from '@shared/utils/segments';
 import type { DubSegment } from './dub-session';
 
 const DEFAULT_VOICE = '__default__';
@@ -117,7 +113,7 @@ export function CastingBoard({
   return (
     <details
       open={open}
-      className="group rounded-xl border border-border/60 bg-muted/20 p-3"
+      className="group rounded-xl border border-border/40 bg-muted/15 p-3"
       onToggle={(event) => {
         setOpen(event.currentTarget.open);
         if (!event.currentTarget.open) setDropTarget(null);

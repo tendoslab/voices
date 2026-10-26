@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}}가 각 세그먼트를 문맥에 맞게 번역하고 음성 측정 후 시간 차이가 나는 문장을 다시 작성합니다.",
     "choose_translation_agent": "번역 에이전트 선택",
     "no_local_agents": "로컬 에이전트로 번역하려면 Codex, Claude Code, OpenCode 또는 Pi를 설치하세요.",
-    "agent_translation_complete": "{{agent}}가 세그먼트 번역을 마쳤습니다."
+    "agent_translation_complete": "{{agent}}가 세그먼트 번역을 마쳤습니다.",
+    "input_issue_no_audio": "오디오 트랙이 없습니다 — 소리가 있는 동영상 또는 오디오 파일을 선택하세요",
+    "input_issue_invalid_media": "이 파일을 읽을 수 없습니다 — 완전하고 재생 가능한 파일을 선택하세요",
+    "input_issue_unsupported": "지원하지 않는 파일 형식입니다 — 동영상 또는 오디오 파일을 선택하세요",
+    "input_issue_empty": "빈 파일입니다 — 다른 파일을 선택하세요",
+    "file_actions": "파일 작업",
+    "translator_agent": "에이전트"
   },
   "dub_workflow": {
     "preparing_audio": "오디오 준비 중…",

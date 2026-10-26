@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}} vertaalt elk segment in context en herschrijft timingafwijkingen na meting van de spraak.",
     "choose_translation_agent": "Vertaalagent kiezen",
     "no_local_agents": "Installeer Codex, Claude Code, OpenCode of Pi om met een lokale agent te vertalen.",
-    "agent_translation_complete": "{{agent}} heeft de segmenten vertaald."
+    "agent_translation_complete": "{{agent}} heeft de segmenten vertaald.",
+    "input_issue_no_audio": "Geen audiospoor — kies een video- of audiobestand met geluid",
+    "input_issue_invalid_media": "Dit bestand is onleesbaar — kies een volledig, afspeelbaar bestand",
+    "input_issue_unsupported": "Bestandstype niet ondersteund — kies een video- of audiobestand",
+    "input_issue_empty": "Dit bestand is leeg — kies een ander bestand",
+    "file_actions": "Bestandsacties",
+    "translator_agent": "Agent"
   },
   "dub_workflow": {
     "preparing_audio": "Audio voorbereiden…",

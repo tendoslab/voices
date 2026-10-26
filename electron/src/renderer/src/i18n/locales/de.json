@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}} übersetzt jedes Segment im Kontext und überarbeitet Timing-Abweichungen nach der gemessenen Sprache.",
     "choose_translation_agent": "Übersetzungsagent wählen",
     "no_local_agents": "Installieren Sie Codex, Claude Code, OpenCode oder Pi, um mit einem lokalen Agenten zu übersetzen.",
-    "agent_translation_complete": "{{agent}} hat die Segmente fertig übersetzt."
+    "agent_translation_complete": "{{agent}} hat die Segmente fertig übersetzt.",
+    "input_issue_no_audio": "Keine Tonspur – wähle eine Video- oder Audiodatei mit Ton",
+    "input_issue_invalid_media": "Datei nicht lesbar – wähle eine vollständige, abspielbare Datei",
+    "input_issue_unsupported": "Nicht unterstützter Dateityp – wähle eine Video- oder Audiodatei",
+    "input_issue_empty": "Diese Datei ist leer – wähle eine andere Datei",
+    "file_actions": "Dateiaktionen",
+    "translator_agent": "Agent"
   },
   "dub_workflow": {
     "preparing_audio": "Audio wird vorbereitet…",

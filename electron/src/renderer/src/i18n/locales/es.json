@@ -920,7 +920,13 @@
     "agent_cli_desc": "{{agent}} traduce cada segmento en contexto y reajusta los desajustes de tiempo después de medir el habla.",
     "choose_translation_agent": "Elegir agente de traducción",
     "no_local_agents": "Instala Codex, Claude Code, OpenCode o Pi para traducir con un agente local.",
-    "agent_translation_complete": "{{agent}} terminó de traducir los segmentos."
+    "agent_translation_complete": "{{agent}} terminó de traducir los segmentos.",
+    "input_issue_no_audio": "Sin pista de audio: elige un archivo de vídeo o audio con sonido",
+    "input_issue_invalid_media": "No se puede leer este archivo: elige un archivo completo y reproducible",
+    "input_issue_unsupported": "Tipo de archivo no compatible: elige un archivo de vídeo o audio",
+    "input_issue_empty": "Este archivo está vacío: elige otro archivo",
+    "file_actions": "Acciones del archivo",
+    "translator_agent": "Agente"
   },
   "dub_workflow": {
     "preparing_audio": "Preparando audio…",

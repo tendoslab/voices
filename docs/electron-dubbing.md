@@ -20,8 +20,12 @@ translate, review the text, then generate. Completed tracks can be previewed and
 exported through the native save dialog.
 
 The import card can clear a pasted URL and its cookie attachment before ingest.
-After loading a source, Remove video (Remove audio for audio sources) returns to
-the import card, with its file and URL options, discarding the transcript and edit
+A loaded source shows as one file row: its name (full name on hover), length and
+size, and a **File actions** menu with Change file, Use link and Remove video
+(Remove audio for audio sources). While it is preparing, the main pane previews
+the file and shows the current stage. Spoken language (Auto by default) and the
+speaker count sit directly under it, with Import .srt as a secondary action.
+Remove returns to the import card, with its file and URL options, discarding the transcript and edit
 history while retaining production settings. It stays available after an
 interrupted or failed run, and asks for confirmation when transcript edits or
 segments would be discarded.
@@ -400,6 +404,12 @@ size while its beginning is filled with zeros after an interrupted download or
 copy. Wait for the transfer to finish, ensure the storage drive has enough free
 space, and download or copy a fresh file before uploading again. Repeatedly
 uploading the same damaged file cannot restore its missing header.
+
+A file with no audio track, an empty file, an unsupported file type or a
+damaged file is shown as a note on the file row (for example "No audio track —
+choose a video or audio file with sound") instead of a failure banner: choose
+another file with Change file. Real failures keep the banner with Open docs and
+Copy diagnostic.
 Uploads also check that the data drive has room for the source copy. If the drive fills during a copy, VoiceStudio removes the partial job
 file and asks you to free space in Settings → Storage before retrying.
 
@@ -428,6 +438,6 @@ audio if a later import fails validation or runs out of space.
 Cancelling an upload waits for its copy worker to stop before closing the input
 and clearing the reserved job, so the same upload can be retried safely.
 
-Use **Use link** beside an uploaded source to replace it with a URL. **Cancel**
+Use **Use link** in the source's File actions menu to replace it with a URL. **Cancel**
 closes the URL form without changing the source; changing the source also closes
 the form. URL ingestion waits until any pending cancellation finishes.

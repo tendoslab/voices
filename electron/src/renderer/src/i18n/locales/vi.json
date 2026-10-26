@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}} dịch từng đoạn theo ngữ cảnh và viết lại các đoạn lệch thời lượng sau khi đo giọng nói.",
     "choose_translation_agent": "Chọn tác nhân dịch",
     "no_local_agents": "Cài đặt Codex, Claude Code, OpenCode hoặc Pi để dịch bằng tác nhân cục bộ.",
-    "agent_translation_complete": "{{agent}} đã dịch xong các đoạn."
+    "agent_translation_complete": "{{agent}} đã dịch xong các đoạn.",
+    "input_issue_no_audio": "Không có rãnh âm thanh — hãy chọn tệp video hoặc âm thanh có tiếng",
+    "input_issue_invalid_media": "Không đọc được tệp này — hãy chọn tệp hoàn chỉnh, phát được",
+    "input_issue_unsupported": "Loại tệp không được hỗ trợ — hãy chọn tệp video hoặc âm thanh",
+    "input_issue_empty": "Tệp này trống — hãy chọn tệp khác",
+    "file_actions": "Thao tác tệp",
+    "translator_agent": "Tác tử"
   },
   "dub_workflow": {
     "preparing_audio": "Đang chuẩn bị âm thanh…",

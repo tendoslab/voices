@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertCircleIcon, LanguagesIcon, XIcon } from 'lucide-react';
+import { AlertCircleIcon, LanguagesIcon } from 'lucide-react';
 // Shared JSX controls are also consumed by the maintained shared UI modules.
 // @ts-expect-error Shared JSX has no declaration file.
 import LanguageFlag from '@shared/components/LanguageFlag';
@@ -23,6 +23,8 @@ export interface LanguagePickerProps {
   supportedOptions?: readonly string[] | null;
   disabled?: boolean;
   className?: string;
+  /** Accessible name of the trigger; defaults to "Language". */
+  ariaLabel?: string;
   modelLabel?: string;
   capabilityState?: 'known' | 'unknown' | 'loading' | 'error';
   recentsScope?: string;
@@ -37,6 +39,7 @@ export function LanguagePicker({
   supportedOptions,
   disabled = false,
   className,
+  ariaLabel,
   modelLabel,
   capabilityState,
   recentsScope = 'language',
@@ -113,7 +116,7 @@ export function LanguagePicker({
       value={language}
       options={entries}
       disabled={disabled}
-      ariaLabel={t('clone.language')}
+      ariaLabel={ariaLabel || t('clone.language')}
       buttonClassName={className}
       unavailableLabel={unavailable}
       recentsKey={`voicestudio.language-recents.${recentsScope}.v1`}
@@ -164,57 +167,5 @@ export function LanguagePicker({
         ) : undefined
       }
     />
-  );
-}
-
-export function MultiLanguagePicker({
-  selected,
-  onChange,
-  options = LANGUAGES,
-  supportedOptions,
-  disabled = false,
-}: {
-  selected: string[];
-  onChange: (selected: string[]) => void;
-  options?: string[];
-  supportedOptions?: readonly string[] | null;
-  disabled?: boolean;
-}) {
-  const { t } = useTranslation();
-  const available = options.filter((language) => !selected.includes(language));
-  return (
-    <div className="space-y-2">
-      {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {selected.map((language) => (
-            <span
-              key={language}
-              className="inline-flex h-7 max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 text-xs font-medium text-primary"
-            >
-              <span className="truncate">{language}</span>
-              <button
-                type="button"
-                disabled={disabled}
-                aria-label={`${t('common.delete')} ${language}`}
-                className="flex size-6 shrink-0 items-center justify-center rounded-full hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                onClick={() => onChange(selected.filter((item) => item !== language))}
-              >
-                <XIcon className="size-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      {available.length > 0 && (
-        <LanguagePicker
-          value={t('dub.manage_languages')}
-          options={available}
-          supportedOptions={supportedOptions}
-          recentsScope="dub"
-          disabled={disabled}
-          onValueChange={(language) => onChange([...selected, language])}
-        />
-      )}
-    </div>
   );
 }

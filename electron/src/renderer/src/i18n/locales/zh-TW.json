@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}} 會結合上下文翻譯每個片段，並在測量語音後重寫不符合時長的內容。",
     "choose_translation_agent": "選擇翻譯代理",
     "no_local_agents": "安裝 Codex、Claude Code、OpenCode 或 Pi，以使用本機代理翻譯。",
-    "agent_translation_complete": "{{agent}} 已完成片段翻譯。"
+    "agent_translation_complete": "{{agent}} 已完成片段翻譯。",
+    "input_issue_no_audio": "沒有音軌 — 請選擇有聲音的影片或音訊檔案",
+    "input_issue_invalid_media": "無法讀取此檔案 — 請選擇完整、可播放的檔案",
+    "input_issue_unsupported": "不支援的檔案類型 — 請選擇影片或音訊檔案",
+    "input_issue_empty": "此檔案是空的 — 請選擇其他檔案",
+    "file_actions": "檔案操作",
+    "translator_agent": "智慧代理"
   },
   "dub_workflow": {
     "preparing_audio": "正在準備音訊...",

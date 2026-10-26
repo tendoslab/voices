@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}} menerjemahkan setiap segmen sesuai konteks dan menulis ulang ketidakcocokan waktu setelah durasi ucapan diukur.",
     "choose_translation_agent": "Pilih agen penerjemah",
     "no_local_agents": "Instal Codex, Claude Code, OpenCode, atau Pi untuk menerjemahkan dengan agen lokal.",
-    "agent_translation_complete": "{{agent}} selesai menerjemahkan segmen."
+    "agent_translation_complete": "{{agent}} selesai menerjemahkan segmen.",
+    "input_issue_no_audio": "Tidak ada trek audio — pilih file video atau audio yang bersuara",
+    "input_issue_invalid_media": "File ini tidak dapat dibaca — pilih file yang lengkap dan dapat diputar",
+    "input_issue_unsupported": "Jenis file tidak didukung — pilih file video atau audio",
+    "input_issue_empty": "File ini kosong — pilih file lain",
+    "file_actions": "Tindakan file",
+    "translator_agent": "Agen"
   },
   "dub_workflow": {
     "preparing_audio": "Mempersiapkan audio…",

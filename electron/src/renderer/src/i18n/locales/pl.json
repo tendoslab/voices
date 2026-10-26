@@ -922,7 +922,13 @@
     "agent_cli_desc": "{{agent}} tłumaczy każdy segment w kontekście i poprawia rozbieżności czasowe po zmierzeniu mowy.",
     "choose_translation_agent": "Wybierz agenta tłumaczącego",
     "no_local_agents": "Zainstaluj Codex, Claude Code, OpenCode lub Pi, aby tłumaczyć lokalnym agentem.",
-    "agent_translation_complete": "{{agent}} zakończył tłumaczenie segmentów."
+    "agent_translation_complete": "{{agent}} zakończył tłumaczenie segmentów.",
+    "input_issue_no_audio": "Brak ścieżki dźwiękowej — wybierz plik wideo lub audio z dźwiękiem",
+    "input_issue_invalid_media": "Nie można odczytać pliku — wybierz kompletny, odtwarzalny plik",
+    "input_issue_unsupported": "Nieobsługiwany typ pliku — wybierz plik wideo lub audio",
+    "input_issue_empty": "Ten plik jest pusty — wybierz inny plik",
+    "file_actions": "Akcje pliku",
+    "translator_agent": "Agent"
   },
   "dub_workflow": {
     "preparing_audio": "Przygotowuję dźwięk…",

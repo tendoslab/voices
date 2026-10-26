@@ -9,6 +9,7 @@ import type { DubExportPreferences } from './dub-export';
 import { MAX_COOKIE_EXPORT_BYTES, _cookieTransportAllowed } from '@shared/utils/cookieExport';
 import { projectSession, type DubProject } from '../projects/project-format';
 import { DUB_DRAFT_KEY, restoreDubDraft } from './dub-draft';
+import { dubInputIssue, type DubInputIssue } from './dub-input-issue';
 import { Store } from '@tanstack/store';
 import { useStore } from '@tanstack/react-store';
 import { apiJson, ApiError } from '@/lib/api/client';
@@ -180,6 +181,8 @@ export interface DubSession {
   event: TaskEvent | null;
   error: string | null;
   failure?: PublicFailure | null;
+  /** A source the user can fix by choosing another file (shown on the file row). */
+  inputIssue?: DubInputIssue | null;
   asrModelMissing?: AsrModelMissing | null;
 }
 const initial: DubSession = {
@@ -205,6 +208,7 @@ const initial: DubSession = {
   event: null,
   error: null,
   failure: null,
+  inputIssue: null,
   asrModelMissing: null,
 };
 export const DUB_STOP_FAILED = 'DUB_STOP_FAILED';
@@ -238,6 +242,7 @@ const persist = () => {
         event: null,
         error: null,
         failure: null,
+        inputIssue: null,
         asrModelMissing: null,
       }),
     );
@@ -861,6 +866,7 @@ async function run(
     phase,
     error: null,
     failure: null,
+    inputIssue: null,
     event: null,
     asrModelMissing: null,
   });
@@ -880,7 +886,15 @@ async function run(
   } catch (error) {
     if (reportPhase)
       recordActionBreadcrumb(`dub:${reportPhase}:${active.signal.aborted ? 'cancel' : 'error'}`);
-    if (!active.signal.aborted) {
+    const inputIssue =
+      !active.signal.aborted && (phase === 'preparing' || phase === 'transcribing')
+        ? dubInputIssue(error, dubSession.state.failure)
+        : null;
+    if (inputIssue) {
+      // The same file fails the same way on every retry: show it on the file
+      // row as a choose-another-file prompt, not as a recoverable failure.
+      patch({ error: null, failure: null, inputIssue });
+    } else if (!active.signal.aborted) {
       const translationError = phase === 'translating' ? describeDubTranslationError(error) : null;
       if (error instanceof DubAsrModelMissingError)
         patch({ error: null, asrModelMissing: error.payload });
@@ -893,8 +907,9 @@ async function run(
     const current = dubSession.state;
     // A lost stream does not mean the backend stopped. Keep the task recoverable
     // until its terminal event or confirmed cancellation, including before reload.
-    const recovery =
-      current.taskId && (current.phase === 'preparing' || current.phase === 'generating')
+    const recovery = inputIssue
+      ? null
+      : current.taskId && (current.phase === 'preparing' || current.phase === 'generating')
         ? current.phase
         : current.recovery;
     patch({ phase: current.segments.length ? 'editing' : 'idle', recovery });
@@ -1050,7 +1065,10 @@ export async function uploadDub(file: File) {
     jobId,
     filename: file.name,
     inputType,
+    inputIssue: file.size === 0 ? 'empty' : null,
   }));
+  // An empty file has nothing to upload; the file row asks for another one.
+  if (file.size === 0) return;
   await run('preparing', async (signal) => {
     const body = new FormData();
     body.set('video', file);

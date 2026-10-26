@@ -926,7 +926,13 @@
     "agent_cli_desc": "يترجم {{agent}} كل مقطع ضمن سياقه ويعيد صياغة حالات عدم تطابق التوقيت بعد قياس الكلام.",
     "choose_translation_agent": "اختيار وكيل الترجمة",
     "no_local_agents": "ثبّت Codex أو Claude Code أو OpenCode أو Pi للترجمة باستخدام وكيل محلي.",
-    "agent_translation_complete": "أكمل {{agent}} ترجمة المقاطع."
+    "agent_translation_complete": "أكمل {{agent}} ترجمة المقاطع.",
+    "input_issue_no_audio": "لا يوجد مسار صوتي — اختر ملف فيديو أو صوت يحتوي على صوت",
+    "input_issue_invalid_media": "تعذّرت قراءة هذا الملف — اختر ملفًا كاملًا قابلًا للتشغيل",
+    "input_issue_unsupported": "نوع ملف غير مدعوم — اختر ملف فيديو أو صوت",
+    "input_issue_empty": "هذا الملف فارغ — اختر ملفًا آخر",
+    "file_actions": "إجراءات الملف",
+    "translator_agent": "الوكيل"
   },
   "dub_workflow": {
     "preparing_audio": "جارٍ تحضير الصوت…",

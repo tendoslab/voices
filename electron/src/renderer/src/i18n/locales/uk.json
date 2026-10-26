@@ -922,7 +922,13 @@
     "agent_cli_desc": "{{agent}} перекладає кожен сегмент з урахуванням контексту й виправляє розбіжності в часі після вимірювання мовлення.",
     "choose_translation_agent": "Вибрати агента перекладу",
     "no_local_agents": "Установіть Codex, Claude Code, OpenCode або Pi для перекладу локальним агентом.",
-    "agent_translation_complete": "{{agent}} завершив переклад сегментів."
+    "agent_translation_complete": "{{agent}} завершив переклад сегментів.",
+    "input_issue_no_audio": "Немає звукової доріжки — виберіть відео- або аудіофайл зі звуком",
+    "input_issue_invalid_media": "Не вдається прочитати файл — виберіть повний файл, що відтворюється",
+    "input_issue_unsupported": "Непідтримуваний тип файлу — виберіть відео- або аудіофайл",
+    "input_issue_empty": "Цей файл порожній — виберіть інший файл",
+    "file_actions": "Дії з файлом",
+    "translator_agent": "Агент"
   },
   "dub_workflow": {
     "preparing_audio": "Підготовка аудіо…",

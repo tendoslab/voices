@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}} översätter varje segment i sitt sammanhang och skriver om tidsavvikelser efter uppmätt tal.",
     "choose_translation_agent": "Välj översättningsagent",
     "no_local_agents": "Installera Codex, Claude Code, OpenCode eller Pi för att översätta med en lokal agent.",
-    "agent_translation_complete": "{{agent}} har översatt segmenten."
+    "agent_translation_complete": "{{agent}} har översatt segmenten.",
+    "input_issue_no_audio": "Inget ljudspår – välj en video- eller ljudfil med ljud",
+    "input_issue_invalid_media": "Filen kan inte läsas – välj en komplett, spelbar fil",
+    "input_issue_unsupported": "Filtypen stöds inte – välj en video- eller ljudfil",
+    "input_issue_empty": "Filen är tom – välj en annan fil",
+    "file_actions": "Filåtgärder",
+    "translator_agent": "Agent"
   },
   "dub_workflow": {
     "preparing_audio": "Förbereder ljud...",

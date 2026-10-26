@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}} は各セグメントを文脈に沿って翻訳し、音声の実測後に時間のずれを修正します。",
     "choose_translation_agent": "翻訳エージェントを選択",
     "no_local_agents": "ローカルエージェントで翻訳するには Codex、Claude Code、OpenCode、Pi のいずれかをインストールしてください。",
-    "agent_translation_complete": "{{agent}} がセグメントの翻訳を完了しました。"
+    "agent_translation_complete": "{{agent}} がセグメントの翻訳を完了しました。",
+    "input_issue_no_audio": "音声トラックがありません — 音声付きの動画または音声ファイルを選んでください",
+    "input_issue_invalid_media": "このファイルを読み込めません — 完全で再生できるファイルを選んでください",
+    "input_issue_unsupported": "サポートされていないファイル形式です — 動画または音声ファイルを選んでください",
+    "input_issue_empty": "このファイルは空です — 別のファイルを選んでください",
+    "file_actions": "ファイル操作",
+    "translator_agent": "エージェント"
   },
   "dub_workflow": {
     "preparing_audio": "オーディオを準備しています…",

@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}} her bölümü bağlam içinde çevirir ve ölçülen konuşmadan sonra zamanlama sapmalarını yeniden düzenler.",
     "choose_translation_agent": "Çeviri ajanını seç",
     "no_local_agents": "Yerel bir aracıyla çevirmek için Codex, Claude Code, OpenCode veya Pi kurun.",
-    "agent_translation_complete": "{{agent}} bölümlerin çevirisini tamamladı."
+    "agent_translation_complete": "{{agent}} bölümlerin çevirisini tamamladı.",
+    "input_issue_no_audio": "Ses parçası yok — sesli bir video veya ses dosyası seçin",
+    "input_issue_invalid_media": "Bu dosya okunamıyor — eksiksiz, oynatılabilir bir dosya seçin",
+    "input_issue_unsupported": "Desteklenmeyen dosya türü — bir video veya ses dosyası seçin",
+    "input_issue_empty": "Bu dosya boş — başka bir dosya seçin",
+    "file_actions": "Dosya işlemleri",
+    "translator_agent": "Ajan"
   },
   "dub_workflow": {
     "preparing_audio": "Ses hazırlanıyor…",

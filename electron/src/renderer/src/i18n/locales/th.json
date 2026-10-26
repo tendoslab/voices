@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}} แปลแต่ละช่วงตามบริบทและปรับข้อความที่มีเวลาไม่ตรงหลังวัดเสียงพูด",
     "choose_translation_agent": "เลือกเอเจนต์แปลภาษา",
     "no_local_agents": "ติดตั้ง Codex, Claude Code, OpenCode หรือ Pi เพื่อแปลด้วยเอเจนต์ในเครื่อง",
-    "agent_translation_complete": "{{agent}} แปลช่วงต่าง ๆ เสร็จแล้ว"
+    "agent_translation_complete": "{{agent}} แปลช่วงต่าง ๆ เสร็จแล้ว",
+    "input_issue_no_audio": "ไม่มีแทร็กเสียง — เลือกไฟล์วิดีโอหรือเสียงที่มีเสียง",
+    "input_issue_invalid_media": "อ่านไฟล์นี้ไม่ได้ — เลือกไฟล์ที่สมบูรณ์และเล่นได้",
+    "input_issue_unsupported": "ไม่รองรับประเภทไฟล์นี้ — เลือกไฟล์วิดีโอหรือเสียง",
+    "input_issue_empty": "ไฟล์นี้ว่างเปล่า — เลือกไฟล์อื่น",
+    "file_actions": "การดำเนินการไฟล์",
+    "translator_agent": "เอเจนต์"
   },
   "dub_workflow": {
     "preparing_audio": "กำลังเตรียมเสียง...",

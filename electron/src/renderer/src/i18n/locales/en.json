@@ -1126,7 +1126,13 @@
     "agent_cli_desc": "{{agent}} translates every segment in context and rewrites timing misses after measured speech.",
     "choose_translation_agent": "Choose translation agent",
     "no_local_agents": "Install Codex, Claude Code, OpenCode, or Pi to translate with a local agent.",
-    "agent_translation_complete": "{{agent}} finished translating the segments."
+    "agent_translation_complete": "{{agent}} finished translating the segments.",
+    "input_issue_no_audio": "No audio track — choose a video or audio file with sound",
+    "input_issue_invalid_media": "Can't read this file — choose a complete, playable file",
+    "input_issue_unsupported": "Unsupported file type — choose a video or audio file",
+    "input_issue_empty": "This file is empty — choose another file",
+    "file_actions": "File actions",
+    "translator_agent": "Agent"
   },
   "dub_workflow": {
     "preparing_audio": "Preparing audio…",

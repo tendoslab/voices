@@ -8,13 +8,14 @@ import { EngineNotice } from '@/components/engine-notice';
 import { AgentFixButton } from '@/components/agent-fix-button';
 import { getBridge } from '@/components/bridge';
 import { WorkspaceHeader } from '@/components/app-shell/workspace-header';
-import { Switch } from '@/components/ui/switch';
-import { MAX_COOKIE_EXPORT_BYTES } from '@shared/utils/cookieExport';
 import { hasCompleteTranslation, multiLangTargets } from '@shared/utils/multiLang';
 import { segmentGenInputs } from '@shared/utils/segments';
 import { clampSegmentEdit } from '@shared/utils/timeline';
-import { dialectLabel, dialectMatchesLang, dialectOptionsFor } from '@shared/api/dialects';
 import { DubExportPanel } from './dub-export-panel';
+import { DubEmptyState } from './dub-empty-state';
+import { DubSourcePanel } from './dub-source-panel';
+import { compactSourceLabel } from './dub-source-row';
+import { DubTranslationPanel } from './dub-translation-panel';
 import { argosPackInstall, argosPackStatus, buildArgosPackRequest } from './argos-packs';
 import { dubSourceLanguage } from './source-language';
 import { DubTimeline } from './dub-timeline';
@@ -29,23 +30,10 @@ import { CheckpointBanner, type CheckpointStage } from './checkpoint-banner';
 import { ConfirmDialog } from '../clone/confirm-dialog';
 import { useDubOnsets } from './use-dub-onsets';
 import { useDubLivePreview } from './use-dub-live-preview';
-import {
-  setDubFitOptions,
-  setDubQuality,
-  setDubProduction,
-  setDubTranslationOptions,
-} from './dub-session';
+import { setDubFitOptions, setDubQuality, setDubProduction } from './dub-session';
 import { DEFAULT_REPAIR_AGENT_KEY } from '@/lib/repair-agent-events';
 import type { RepairAgentId, RepairAgentInfo } from '../../../../preload/index.d';
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type DragEvent,
-} from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { runRendererTask } from '@/lib/global-error-recovery';
@@ -63,7 +51,6 @@ import {
   AudioLinesIcon,
   AudioWaveformIcon,
   FilmIcon,
-  GaugeIcon,
   HeadphonesIcon,
   LanguagesIcon,
   LoaderCircleIcon,
@@ -74,13 +61,10 @@ import {
   Redo2Icon,
   RotateCcwIcon,
   ScissorsIcon,
-  Settings2Icon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
   Trash2Icon,
   Undo2Icon,
-  UploadIcon,
-  UsersRoundIcon,
   WandSparklesIcon,
   XIcon,
 } from 'lucide-react';
@@ -93,7 +77,7 @@ import {
   videoSource as nativeVideoSource,
   type MediaPlayerInstance,
 } from '@/components/media-player';
-import { LanguagePicker, MultiLanguagePicker } from '@/features/clone/language-picker';
+import { LanguagePicker } from '@/features/clone/language-picker';
 import { EngineLanguagePicker } from '@/features/clone/engine-language-picker';
 import { useTranslationEngines } from '@/features/settings/translation-settings';
 import { agentFitSkillsReady, useLlmSkills } from '@/features/settings/llm-skills';
@@ -105,14 +89,6 @@ import { apiFetch, apiJson, apiPath, describeError, isAbortError } from '@/lib/a
 import { createObjectUrl, revokeObjectUrl } from '@/lib/audio/object-url';
 import { requestPlaybackSeek } from '@/lib/audio/playback-clock';
 import { beginAppActivity } from '@/lib/app-activity';
-import { LANG_CODES } from '@shared/utils/languages';
-import {
-  LANGUAGE_VARIANTS,
-  hasVariantChoices,
-  languageTagName,
-  variantChoice,
-  withVariantChoices,
-} from '@/lib/language-variants';
 import { TRANSLATION_TARGET_LABELS, translationTargetCode } from '@/lib/translation-targets';
 import { cn } from '@/lib/utils';
 import {
@@ -162,23 +138,9 @@ import {
 
 const DEFAULT_TRANSLATION_AGENT_KEY = 'voicestudio.defaultTranslationAgent';
 const LIVE_PREVIEW_KEY = 'voicestudio.dubLivePreview';
-// Targets include translate-and-speak-only languages (Uyghur, #2810); the
-// source picker stays on what speech recognition can transcribe.
+// Targets include translate-and-speak-only languages (Uyghur, #2810).
 const targetOptions = TRANSLATION_TARGET_LABELS;
-const sourceOptions = LANG_CODES.map((item) => item.label);
-// #3143: Brazilian and European Portuguese are separate target choices; each
-// maps to the "Portuguese" track plus its dialect.
-const targetChoices = withVariantChoices(targetOptions);
 const sentenceEnd = /[.!?\u3002\uff01\uff1f]/;
-
-function compactSourceLabel(source: string): string {
-  if (!source) return '';
-  try {
-    return new URL(source).hostname.replace(/^www\./, '');
-  } catch {
-    return source;
-  }
-}
 
 function preparationStageKey(eventType: unknown) {
   const type = typeof eventType === 'string' ? eventType : '';
@@ -227,27 +189,25 @@ export function fingerprintRevision(values?: Record<string, string>) {
 }
 
 export function DubPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const reviewMode = useReviewMode();
   const session = useDubSession();
   const cancelling = useDubCancelling();
   const editHistory = useDubEditHistory();
   const input = useRef<HTMLInputElement>(null);
-  const subtitles = useRef<HTMLInputElement>(null);
   const cursors = useRef(new Map<string, number>());
   const mainScroll = useRef<HTMLDivElement>(null);
   const segmentList = useRef<HTMLDivElement>(null);
   const [segmentScrollMargin, setSegmentScrollMargin] = useState(0);
   const target = session.target;
   const setTarget = setDubTarget;
-  const [url, setUrl] = useState('');
-  // Job the "Use link" form was opened for; a new or removed source closes it.
-  const [linkModeJob, setLinkModeJob] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [cookieFile, setCookieFile] = useState<File>();
-  const [cookieError, setCookieError] = useState(false);
-  const [fetchSubs, setFetchSubs] = useState(false);
-  const [removeVideoOpen, setRemoveVideoOpen] = useState(false);
+  // The file picked in this window: its size for the file row and a local
+  // preview while the backend copy is still being prepared.
+  const [localSource, setLocalSource] = useState<{
+    name: string;
+    size: number;
+    url?: string;
+  } | null>(null);
   const [preview, setPreview] = useState('original');
   const [segmentPreview, setSegmentPreview] = useState<{
     id: string;
@@ -410,9 +370,6 @@ export function DubPage() {
   useEffect(() => {
     if (session.quality !== 'agent') lastEngineQuality.current = session.quality;
   }, [session.quality]);
-  const additionalLanguages = (session.multiTargets || [])
-    .filter((item) => item.code !== code)
-    .map((item) => item.lang);
   const activeTranslatedCount = code
     ? session.segments.filter((segment) => Boolean(segment.translations?.[code]?.trim())).length
     : 0;
@@ -668,10 +625,18 @@ export function DubPage() {
     };
   }, [warmPreviewPaths]);
 
-  const linkMode = Boolean(session.jobId) && linkModeJob === session.jobId;
   const sourceRemovable = dubSourceRemovable(session, cancelling);
-  const isAudioSource = session.inputType === 'audio';
-  const removeSourceLabel = t(isAudioSource ? 'dub.remove_audio' : 'dub.remove_video');
+  useEffect(() => () => revokeObjectUrl(localSource?.url), [localSource]);
+  const startUpload = (file: File) => {
+    if (busy || cancelling || session.recovery) return;
+    setPreview('original');
+    setLocalSource({
+      name: file.name,
+      size: file.size,
+      url: file.size > 0 ? createObjectUrl(file) || undefined : undefined,
+    });
+    void uploadDub(file);
+  };
   const removeVideo = async () => {
     if (!sourceRemovable || !(await removeDubSource())) return;
     livePreview.stop();
@@ -680,115 +645,8 @@ export function DubPage() {
     setSegmentPreview(null);
     setPreviewingSegmentId(null);
     setPreview('original');
-    setUrl('');
-    setCookieFile(undefined);
-    setCookieError(false);
+    setLocalSource(null);
   };
-
-  // The URL form lives in step 1 when there is no source yet, and can be
-  // reopened next to an existing source so a remote link can replace it.
-  const dubUrlForm = (
-    <form
-      className="space-y-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!busy && !cancelling && !session.recovery && isDubUrl(url)) {
-          setPreview('original');
-          void ingestDubUrl(url, cookieFile, fetchSubs);
-          setCookieFile(undefined);
-          setLinkModeJob(null);
-        }
-      }}
-    >
-      <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1">
-          <Input
-            type="url"
-            value={url}
-            onChange={(event) => setUrl(event.target.value)}
-            aria-label={t('dub.paste_url')}
-            placeholder={t('dub.paste_url')}
-            autoFocus={linkMode}
-            disabled={busy || cancelling || Boolean(session.recovery)}
-          />
-        </div>
-        {url && (
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            aria-label={t('common.clear')}
-            disabled={busy || cancelling || Boolean(session.recovery)}
-            onClick={() => {
-              setUrl('');
-              setCookieFile(undefined);
-              setCookieError(false);
-            }}
-          >
-            {t('common.clear')}
-          </Button>
-        )}
-      </div>
-      {url && (
-        <details className="space-y-2">
-          <summary className="cursor-pointer text-xs text-muted-foreground">
-            {t('dub.advanced')}
-          </summary>
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <span>{t('dub.pull_captions')}</span>
-            <Switch
-              aria-label={t('dub.pull_captions')}
-              checked={fetchSubs}
-              onCheckedChange={setFetchSubs}
-              disabled={busy || cancelling || Boolean(session.recovery)}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">{t('dub.youtube_auth')}</p>
-          <Input
-            type="file"
-            accept=".txt,text/plain"
-            aria-label={t('dub.youtube_cookie_file')}
-            disabled={busy || cancelling || Boolean(session.recovery)}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = '';
-              setCookieError(Boolean(file && file.size > MAX_COOKIE_EXPORT_BYTES));
-              setCookieFile(file && file.size <= MAX_COOKIE_EXPORT_BYTES ? file : undefined);
-            }}
-          />
-          {cookieFile && (
-            <div className="flex items-center gap-2">
-              <span className="truncate text-xs">{cookieFile.name}</span>
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                aria-label={t('dub.remove_cookie_file')}
-                onClick={() => setCookieFile(undefined)}
-              >
-                {t('common.cancel')}
-              </Button>
-            </div>
-          )}
-          {cookieError && (
-            <p role="alert" className="text-xs text-destructive">
-              {t('dub.cookie_size_error')}
-            </p>
-          )}
-        </details>
-      )}
-      {url && (
-        <Button
-          type="submit"
-          variant="outline"
-          className="w-full"
-          disabled={busy || cancelling || Boolean(session.recovery) || !isDubUrl(url)}
-        >
-          {t('dub.ingest')}
-        </Button>
-      )}
-    </form>
-  );
 
   const previewDubSegment = async (segment: (typeof session.segments)[number]) => {
     if (!session.jobId || previewingSegmentId) return;
@@ -1022,249 +880,31 @@ export function DubPage() {
           libraryLabel={t('projects.title')}
           className="flex flex-col gap-2"
         >
-          <section
-            className={cn(
-              'space-y-3 rounded-xl border border-border/60 bg-muted/15 p-3 transition-colors',
-              session.jobId && !['idle', 'preparing'].includes(session.phase) && 'rounded-b-md',
-              dragging && 'border-primary/60 bg-primary/5',
+          <DubSourcePanel
+            session={session}
+            busy={busy}
+            cancelling={cancelling}
+            inputRef={input}
+            localSize={localSource?.name === session.filename ? localSource.size : undefined}
+            removable={sourceRemovable}
+            confirmRemove={Boolean(
+              session.recovery || session.segments.length > 0 || editHistory.undoDepth > 0,
             )}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              if (!busy && !session.recovery) setDragging(true);
+            diarisationReady={modelCatalogue.isSuccess ? diarisationReady : undefined}
+            onFile={startUpload}
+            onUrl={(link, cookieFile, fetchSubs) => {
+              if (busy || cancelling || session.recovery || !isDubUrl(link)) return;
+              setPreview('original');
+              void ingestDubUrl(link, cookieFile, fetchSubs);
             }}
-            onDragOver={(event) => event.preventDefault()}
-            onDragLeave={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-                setDragging(false);
+            onSubtitles={(file) => {
+              setPreview('original');
+              void importDubSubtitles(file);
             }}
-            onDrop={(event: DragEvent<HTMLElement>) => {
-              event.preventDefault();
-              setDragging(false);
-              const file = event.dataTransfer.files[0];
-              if (file && !busy && !session.recovery) {
-                setPreview('original');
-                void uploadDub(file);
-              }
-            }}
-          >
-            <h2 className="flex items-center gap-2 text-sm font-medium">
-              <span className="grid size-5 place-items-center rounded-full bg-primary/12 text-[11px] font-semibold text-primary">
-                1
-              </span>
-              {t('dub.upload_transcribe')}
-            </h2>
-            <input
-              ref={input}
-              type="file"
-              accept="audio/*,video/*,.mkv,.mov,.mp4,.wav,.mp3"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = '';
-                if (file) {
-                  setPreview('original');
-                  void uploadDub(file);
-                }
-              }}
-            />
-            {!session.jobId ? (
-              <>
-                <Button
-                  className="w-full"
-                  disabled={busy || Boolean(session.recovery)}
-                  onClick={() => input.current?.click()}
-                >
-                  <UploadIcon />
-                  {t('settings.audio_tools_choose_file')}
-                </Button>
-                <p className="text-center text-xs text-muted-foreground">{t('dub.drop_here')}</p>
-                {dubUrlForm}
-              </>
-            ) : (
-              <>
-                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-background/35 px-2.5 py-2">
-                  <FilmIcon className="size-4 shrink-0 text-primary" />
-                  <span className="min-w-24 flex-1 truncate text-xs" title={session.filename}>
-                    {compactSourceLabel(session.filename)}
-                  </span>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    disabled={busy || Boolean(session.recovery)}
-                    onClick={() => input.current?.click()}
-                  >
-                    {t('dub.change_file')}
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    aria-expanded={linkMode}
-                    disabled={busy || Boolean(session.recovery)}
-                    onClick={() => {
-                      if (!linkMode) {
-                        setUrl('');
-                        setCookieFile(undefined);
-                        setCookieError(false);
-                      }
-                      setLinkModeJob(linkMode ? null : session.jobId);
-                    }}
-                  >
-                    {linkMode ? t('common.cancel') : t('dub.use_link')}
-                  </Button>
-                  <ConfirmDialog
-                    open={removeVideoOpen}
-                    onOpenChange={setRemoveVideoOpen}
-                    title={removeSourceLabel}
-                    description={t(
-                      session.recovery
-                        ? 'dub.remove_interrupted_confirm'
-                        : isAudioSource
-                          ? 'dub.remove_audio_confirm'
-                          : 'dub.remove_video_confirm',
-                    )}
-                    confirmLabel={removeSourceLabel}
-                    onConfirm={() => void removeVideo()}
-                  />
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    aria-label={removeSourceLabel}
-                    disabled={!sourceRemovable}
-                    onClick={() => {
-                      if (
-                        session.recovery ||
-                        session.segments.length > 0 ||
-                        editHistory.undoDepth > 0
-                      )
-                        setRemoveVideoOpen(true);
-                      else void removeVideo();
-                    }}
-                  >
-                    {removeSourceLabel}
-                  </Button>
-                </div>
-                {linkMode && dubUrlForm}
-              </>
-            )}
-            <details className="group space-y-3 border-t border-border/50 pt-2">
-              <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-muted-foreground">
-                <UsersRoundIcon className="size-3.5" />
-                {t('dub.source_language')}
-                <ChevronDownIcon className="ml-auto size-3.5 transition-transform group-open:rotate-180" />
-              </summary>
-              <LanguagePicker
-                value={
-                  LANG_CODES.find((item) => item.code === session.sourceLanguage)?.label ||
-                  t('dub.num_speakers_auto')
-                }
-                options={[t('dub.num_speakers_auto'), ...sourceOptions]}
-                disabled={busy || Boolean(session.recovery)}
-                onValueChange={(value) =>
-                  setDubProduction({
-                    sourceLanguage: LANG_CODES.find((item) => item.label === value)?.code,
-                  })
-                }
-              />
-              <label className="block space-y-2 text-xs">
-                <span>{t('dub.num_speakers_label')}</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={20}
-                  step={1}
-                  placeholder={t('dub.num_speakers_auto')}
-                  value={session.numSpeakers ?? ''}
-                  disabled={busy || Boolean(session.recovery)}
-                  onChange={(event) => {
-                    const value = Number(event.target.value);
-                    setDubProduction({
-                      numSpeakers:
-                        Number.isInteger(value) && value >= 1 && value <= 20 ? value : undefined,
-                    });
-                  }}
-                />
-              </label>
-              <p className="text-xs leading-5 text-muted-foreground">
-                {t('dub.num_speakers_help')}
-              </p>
-              {modelCatalogue.isSuccess && (
-                <div
-                  role="status"
-                  className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/35 px-2.5 py-2 text-xs"
-                >
-                  <UsersRoundIcon
-                    className={cn(
-                      'size-3.5 shrink-0',
-                      diarisationReady ? 'text-emerald-500' : 'text-muted-foreground',
-                    )}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                    {t('engineSidebar.diarisation')} ·{' '}
-                    {t(
-                      diarisationReady ? 'modelMaintenance.installed' : 'modelSettings.unavailable',
-                    )}
-                  </span>
-                  {!diarisationReady && (
-                    <Link
-                      to="/settings/models/$family"
-                      params={{ family: 'diarisation' }}
-                      className={buttonVariants({
-                        variant: 'outline',
-                        size: 'xs',
-                      })}
-                    >
-                      <Settings2Icon />
-                      {t('modelMaintenance.install')}
-                    </Link>
-                  )}
-                </div>
-              )}
-            </details>
-            <input
-              ref={subtitles}
-              type="file"
-              accept=".srt,application/x-subrip"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = '';
-                if (file) {
-                  setPreview('original');
-                  void importDubSubtitles(file);
-                }
-              }}
-            />
-            {session.jobId && (
-              <Button
-                variant="ghost"
-                disabled={busy || Boolean(session.recovery)}
-                onClick={() => subtitles.current?.click()}
-              >
-                <UploadIcon />
-                {t('dub.import_srt')}
-              </Button>
-            )}
-            {session.subtitleImport && (
-              <p role="status" className="text-xs leading-5 text-muted-foreground">
-                {t('dub_workflow.imported_cues', {
-                  count: session.subtitleImport.stats.imported,
-                  file: session.subtitleImport.file,
-                })}
-                {(['skipped_malformed', 'dropped_overlap', 'clamped_to_duration'] as const).map(
-                  (key) =>
-                    session.subtitleImport!.stats[key] ? (
-                      <span key={key} className="block">
-                        {t('dub_workflow.' + key, {
-                          count: session.subtitleImport!.stats[key],
-                        })}
-                      </span>
-                    ) : null,
-                )}
-              </p>
-            )}
-          </section>
+            onRemove={() => void removeVideo()}
+          />
           {session.jobId && !['idle', 'preparing'].includes(session.phase) && (
-            <section className="-mt-1 space-y-3 rounded-xl rounded-t-md border border-border/60 bg-muted/15 p-3">
+            <section className="-mt-1 space-y-3 rounded-xl rounded-t-md border border-border/40 bg-muted/15 p-3">
               <h2 className="flex items-center gap-2 text-sm font-medium">
                 <PlayIcon className="size-4 text-muted-foreground" />
                 {t('dub.preview')}
@@ -1341,316 +981,28 @@ export function DubPage() {
               )}
             </section>
           )}
-          <section className="space-y-3 rounded-xl border border-border/60 bg-muted/15 p-3">
-            <h2 className="flex items-center gap-2 text-sm font-medium">
-              <span className="grid size-5 place-items-center rounded-full bg-primary/12 text-[11px] font-semibold text-primary">
-                2
-              </span>
-              {t('dub.target_language')}
-            </h2>
-            <LanguagePicker
-              value={hasVariantChoices(target) ? variantChoice(target, session.dialect) : target}
-              onValueChange={(choice) => {
-                const variant = LANGUAGE_VARIANTS[choice];
-                const language = variant?.base ?? choice;
-                const selectedCode = translationTargetCode(language);
-                setTarget(language, selectedCode);
-                if (variant) setDubTranslationOptions({ dialect: variant.dialect });
-                else if (!dialectMatchesLang(session.dialect, selectedCode))
-                  setDubTranslationOptions({ dialect: undefined });
-                if (selectedCode)
-                  setDubMultiTargets(
-                    (session.multiTargets || []).filter((item) => item.code !== selectedCode),
-                  );
-              }}
-              options={targetChoices}
-              disabled={busy || Boolean(session.recovery)}
-            />
-            <MultiLanguagePicker
-              selected={additionalLanguages}
-              options={targetOptions.filter((language) => language !== target)}
-              disabled={busy || Boolean(session.recovery)}
-              onChange={(languages) =>
-                setDubMultiTargets(
-                  languages.flatMap((language) => {
-                    const itemCode = translationTargetCode(language);
-                    return itemCode ? [{ lang: language, code: itemCode }] : [];
-                  }),
-                )
-              }
-            />
-            {dialectOptionsFor(code).length > 0 && !hasVariantChoices(code) && (
-              <details className="group space-y-2 border-t border-border/50 pt-2">
-                <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-muted-foreground">
-                  <LanguagesIcon className="size-3.5" />
-                  {t('dub.dialect_label')}
-                  <ChevronDownIcon className="ml-auto size-3.5 transition-transform group-open:rotate-180" />
-                </summary>
-                <p className="text-xs leading-5 text-muted-foreground">{t('dub.dialect_title')}</p>
-                <div className="flex flex-wrap gap-1">
-                  <Button
-                    size="xs"
-                    variant={!session.dialect ? 'secondary' : 'ghost'}
-                    disabled={busy || Boolean(session.recovery)}
-                    onClick={() => setDubTranslationOptions({ dialect: undefined })}
-                  >
-                    {t('dub.dialect_default')}
-                  </Button>
-                  {dialectOptionsFor(code).map((dialect) => (
-                    <Button
-                      key={dialect}
-                      size="xs"
-                      variant={session.dialect === dialect ? 'secondary' : 'ghost'}
-                      disabled={busy || Boolean(session.recovery)}
-                      onClick={() => setDubTranslationOptions({ dialect })}
-                    >
-                      {dialectLabel(dialect, i18n.language)}
-                    </Button>
-                  ))}
-                </div>
-              </details>
-            )}
-            <div className="space-y-2 border-t border-border/50 pt-2">
-              <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <LanguagesIcon className="size-3.5" />
-                {t('about.translator')}
-              </p>
-              <div
-                role="group"
-                aria-label={t('about.translator')}
-                className="grid grid-cols-2 gap-1 rounded-lg bg-muted/30 p-1"
-              >
-                <Button
-                  size="sm"
-                  variant={session.quality === 'agent' ? 'secondary' : 'ghost'}
-                  aria-pressed={session.quality === 'agent'}
-                  disabled={
-                    busy ||
-                    Boolean(session.recovery) ||
-                    (!selectedTranslationAgent && !llmAgentReady)
-                  }
-                  className="h-auto min-w-0 justify-start px-2.5 py-2"
-                  title={
-                    selectedTranslationAgent
-                      ? t('dub.agent_cli_desc', { agent: selectedTranslationAgent.label })
-                      : t('dub.agent_quality_desc')
-                  }
-                  onClick={() => setDubQuality('agent')}
-                >
-                  <WandSparklesIcon className="shrink-0" />
-                  <span className="min-w-0 truncate">{t('dub.translate_with_agent')}</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant={session.quality !== 'agent' ? 'secondary' : 'ghost'}
-                  aria-pressed={session.quality !== 'agent'}
-                  disabled={busy || Boolean(session.recovery) || !provider}
-                  className="h-auto min-w-0 justify-start px-2.5 py-2"
-                  title={provider?.display_name}
-                  onClick={() => setDubQuality(lastEngineQuality.current)}
-                >
-                  <LanguagesIcon className="shrink-0" />
-                  <span className="min-w-0 truncate">
-                    {provider?.display_name || t('engineSidebar.translation')}
-                  </span>
-                </Button>
-              </div>
-              {session.quality === 'agent' && (
-                <p className="px-1 text-xs leading-5 text-muted-foreground">
-                  {selectedTranslationAgent?.label
-                    ? t('dub.agent_cli_desc', { agent: selectedTranslationAgent.label })
-                    : t('dub.agent_quality_desc')}
-                </p>
-              )}
-            </div>
-            {session.quality === 'agent' && (
-              <div className="space-y-2 border-t border-border/50 pt-3">
-                <label htmlFor="dub-translation-instructions" className="text-xs font-medium">
-                  {t('dubStyle.label')}
-                </label>
-                <textarea
-                  dir="auto"
-                  id="dub-translation-instructions"
-                  aria-describedby="dub-translation-instructions-help"
-                  rows={4}
-                  maxLength={5000}
-                  value={session.translationInstructions || ''}
-                  disabled={busy || Boolean(session.recovery)}
-                  onChange={(event) =>
-                    setDubTranslationOptions({ translationInstructions: event.target.value })
-                  }
-                  className="w-full resize-y rounded-lg border border-input bg-background/40 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                />
-                <p
-                  id="dub-translation-instructions-help"
-                  className="text-xs leading-5 text-muted-foreground"
-                >
-                  {t('dubStyle.help')}
-                </p>
-              </div>
-            )}
-            {session.quality !== 'agent' && (
-              <div className="space-y-2 border-t border-border/50 pt-2">
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                  <GaugeIcon className="size-3.5" />
-                  {t('settings.translate_quality')}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t('settings.translate_quality_desc')}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {(['fast', 'autofit', 'cinematic'] as const).map((quality) => (
-                    <Button
-                      key={quality}
-                      size="sm"
-                      variant={session.quality === quality ? 'secondary' : 'ghost'}
-                      aria-pressed={session.quality === quality}
-                      disabled={busy || Boolean(session.recovery)}
-                      onClick={() => setDubQuality(quality)}
-                    >
-                      {t('settings.translate_' + quality)}
-                    </Button>
-                  ))}
-                </div>
-                <div className="space-y-2 border-t border-border/50 pt-2">
-                  {provider?.id === 'openai' && (
-                    <>
-                      <label className="flex items-start justify-between gap-3 text-xs">
-                        <span>
-                          <span className="block font-medium">{t('dub.auto_glossary_label')}</span>
-                          <span className="mt-0.5 block leading-5 text-muted-foreground">
-                            {t('dub.auto_glossary_title')}
-                          </span>
-                        </span>
-                        <Switch
-                          checked={session.autoGlossary ?? true}
-                          disabled={busy || Boolean(session.recovery)}
-                          onCheckedChange={(autoGlossary) =>
-                            setDubTranslationOptions({ autoGlossary })
-                          }
-                        />
-                      </label>
-                      <label className="flex items-start justify-between gap-3 text-xs">
-                        <span>
-                          <span className="block font-medium">{t('dub.reflect_label')}</span>
-                          <span className="mt-0.5 block leading-5 text-muted-foreground">
-                            {t('dub.reflect_title')}
-                          </span>
-                        </span>
-                        <Switch
-                          checked={session.reflectPass ?? true}
-                          disabled={busy || Boolean(session.recovery)}
-                          onCheckedChange={(reflectPass) =>
-                            setDubTranslationOptions({ reflectPass })
-                          }
-                        />
-                      </label>
-                    </>
-                  )}
-                  <label className="flex items-start justify-between gap-3 text-xs">
-                    <span>
-                      <span className="block font-medium">{t('dub.condense_label')}</span>
-                      <span className="mt-0.5 block leading-5 text-muted-foreground">
-                        {t('dub.condense_title')}
-                      </span>
-                    </span>
-                    <Switch
-                      checked={session.condenseSuggest ?? false}
-                      disabled={busy || Boolean(session.recovery)}
-                      onCheckedChange={(condenseSuggest) =>
-                        setDubTranslationOptions({ condenseSuggest })
-                      }
-                    />
-                  </label>
-                </div>
-              </div>
-            )}
-            {session.translationFallback && (
-              <div role="status" className="space-y-2 text-xs text-muted-foreground">
-                <p>{t('dub_workflow.cinematic_no_llm')}</p>
-                <Link to="/settings/models/$family" params={{ family: 'llm' }}>
-                  {t('engineSidebar.llm')}
-                </Link>
-              </div>
-            )}
-            {/* #2752: the engine could not honour the chosen dialect. Without
-                this the pick looked applied and the output looked simply wrong. */}
-            {session.dialectIgnored && (
-              <div role="status" className="space-y-2 text-xs text-muted-foreground">
-                <p>
-                  {session.dialectUsed
-                    ? t('dub_workflow.dialect_used', {
-                        variant: languageTagName(session.dialectUsed, i18n.language),
-                      })
-                    : t('dub_workflow.dialect_not_applied')}
-                </p>
-                <Link to="/settings/models/$family" params={{ family: 'llm' }}>
-                  {t('engineSidebar.llm')}
-                </Link>
-              </div>
-            )}
-            <Link
-              to="/settings/models/$family"
-              params={{ family: 'translation' }}
-              className="flex items-center gap-2 text-sm text-muted-foreground"
-            >
-              <Settings2Icon className="size-4" />
-              <span>{provider?.display_name || t('engineSidebar.translation')}</span>
-            </Link>
-            {provider && (
-              <p className="text-xs text-muted-foreground">
-                {t('modelMaintenance.' + provider.category)}
-              </p>
-            )}
-            {provider?.id === 'argos' && argosPacks.isError && (
-              <PipelineFailure
-                className="text-xs"
-                fallback={describeError(argosPacks.error)}
-                action={
-                  <Button size="xs" variant="ghost" onClick={() => void argosPacks.refetch()}>
-                    <RotateCcwIcon />
-                    {t('backend.retry')}
-                  </Button>
-                }
-              />
-            )}
-            {provider?.id === 'argos' && missingArgosPacks.length > 0 && (
-              <PipelineFailure
-                className="text-xs"
-                fallback={`${t('modelMaintenance.install')} · ${provider.display_name} · ${missingArgosPacks
-                  .map((pair) => `${pair.source_lang} → ${pair.target_lang}`)
-                  .join(', ')}`}
-                action={
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    disabled={installingArgosPacks}
-                    onClick={() => void installArgosLanguagePacks()}
-                  >
-                    {installingArgosPacks ? (
-                      <LoaderCircleIcon className="animate-spin" />
-                    ) : (
-                      <LanguagesIcon />
-                    )}
-                    {t(installingArgosPacks ? 'common.loading' : 'modelMaintenance.install')}
-                  </Button>
-                }
-              />
-            )}
-            {provider && !(provider.ready ?? provider.installed) && (
-              <PipelineFailure
-                className="text-xs"
-                fallback={provider.availability_reason || t('modelSettings.unavailable')}
-              />
-            )}
-          </section>
+          <DubTranslationPanel
+            session={session}
+            locked={busy || Boolean(session.recovery)}
+            provider={provider}
+            agentLabel={selectedTranslationAgent?.label}
+            agentAvailable={Boolean(selectedTranslationAgent) || llmAgentReady}
+            engineQuality={lastEngineQuality.current}
+            argos={{
+              error: argosPacks.isError ? argosPacks.error : null,
+              missing: missingArgosPacks,
+              installing: installingArgosPacks,
+              retry: () => void argosPacks.refetch(),
+              install: () => void installArgosLanguagePacks(),
+            }}
+          />
           <CastingBoard
             segments={session.segments}
             profiles={profiles.data || []}
             disabled={busy || Boolean(session.recovery)}
             onAssign={assignDubSpeakerProfile}
           />
-          <details className="group rounded-xl border border-border/60 bg-muted/20 p-3">
+          <details className="group rounded-xl border border-border/40 bg-muted/15 p-3">
             <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium">
               <Clock3Icon className="size-4 text-muted-foreground" />
               {t('dub.timing_label')}
@@ -1745,7 +1097,7 @@ export function DubPage() {
               </div>
             </div>
           </details>
-          <details className="group rounded-xl border border-border/60 bg-muted/20 p-3">
+          <details className="group rounded-xl border border-border/40 bg-muted/15 p-3">
             <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium">
               <SlidersHorizontalIcon className="size-4 text-muted-foreground" />
               {t('clone.production_overrides')}
@@ -1917,73 +1269,46 @@ export function DubPage() {
               />
             )}
             {!session.segments.length && (!session.recovery || busy) && (
-              <div className="mx-auto flex min-h-[24rem] w-full max-w-5xl flex-col items-center justify-center px-6 text-center">
-                <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  {busy ? (
-                    <LoaderCircleIcon className="size-6 animate-spin motion-reduce:animate-none" />
-                  ) : (
-                    <FilmIcon className="size-6" />
-                  )}
-                </div>
-                <h2 className="text-lg font-semibold">{t('dub.video_dubbing_studio')}</h2>
-                {busy ? (
-                  <p className="mt-2 text-sm text-muted-foreground" role="status">
-                    {t(stage)}
-                  </p>
-                ) : (
-                  <>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {t('dub.supported_formats')}
-                    </p>
-                    {!session.jobId && !demoDismissed && (
-                      <div className="mt-4 w-full">
-                        <DubbingDemo
-                          onTry={() => input.current?.click()}
-                          onEdit={async ({ path, filename }) => {
-                            try {
-                              const response = await apiFetch(path);
-                              const blob = await response.blob();
-                              setPreview('original');
-                              await uploadDub(
-                                new File([blob], filename, {
-                                  type: blob.type || 'video/mp4',
-                                }),
-                              );
-                            } catch (error) {
-                              toast.error(describeError(error));
-                            }
-                          }}
-                          onDismiss={() => {
-                            setDemoDismissed(true);
-                            try {
-                              localStorage.setItem('omnivoice.dubbingDemoDismissed', '1');
-                            } catch {
-                              // The demo still dismisses for this session when storage is unavailable.
-                            }
-                          }}
-                        />
-                      </div>
-                    )}
-                    <ol className="mt-4 grid w-full grid-cols-3 gap-2 text-left max-sm:grid-cols-1">
-                      {[
-                        ['1', 'dub.upload_transcribe'],
-                        ['2', 'dub.translate'],
-                        ['3', 'dub.generate_dub'],
-                      ].map(([number, label]) => (
-                        <li
-                          key={number}
-                          className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs"
-                        >
-                          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-medium text-primary">
-                            {number}
-                          </span>
-                          {t(label)}
-                        </li>
-                      ))}
-                    </ol>
-                  </>
-                )}
-              </div>
+              <DubEmptyState
+                session={session}
+                busy={busy}
+                stage={stage}
+                localPreview={
+                  localSource?.name === session.filename &&
+                  ['idle', 'preparing'].includes(session.phase)
+                    ? localSource.url
+                    : undefined
+                }
+                onChangeFile={() => input.current?.click()}
+                demo={
+                  !demoDismissed && !busy ? (
+                    <DubbingDemo
+                      onTry={() => input.current?.click()}
+                      onEdit={async ({ path, filename }) => {
+                        try {
+                          const response = await apiFetch(path);
+                          const blob = await response.blob();
+                          startUpload(
+                            new File([blob], filename, {
+                              type: blob.type || 'video/mp4',
+                            }),
+                          );
+                        } catch (error) {
+                          toast.error(describeError(error));
+                        }
+                      }}
+                      onDismiss={() => {
+                        setDemoDismissed(true);
+                        try {
+                          localStorage.setItem('omnivoice.dubbingDemoDismissed', '1');
+                        } catch {
+                          // The demo still dismisses for this session when storage is unavailable.
+                        }
+                      }}
+                    />
+                  ) : undefined
+                }
+              />
             )}
             <div className="w-full space-y-4">
               {session.segments.length > 0 && (

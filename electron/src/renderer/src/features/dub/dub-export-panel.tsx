@@ -118,7 +118,7 @@ export function DubExportPanel({ session, disabled }: { session: DubSession; dis
     </div>
   );
   return (
-    <details className="group rounded-xl border border-border/60 bg-muted/20 p-3">
+    <details className="group rounded-xl border border-border/40 bg-muted/15 p-3">
       <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium">
         <DownloadIcon className="size-4 text-muted-foreground" />
         {t('exportModal.export_options')}

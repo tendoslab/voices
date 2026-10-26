@@ -918,7 +918,13 @@
     "agent_cli_desc": "{{agent}} हर सेगमेंट का संदर्भ सहित अनुवाद करता है और मापी गई वाणी के बाद समय-अंतर को दोबारा लिखता है।",
     "choose_translation_agent": "अनुवाद एजेंट चुनें",
     "no_local_agents": "स्थानीय एजेंट से अनुवाद करने के लिए Codex, Claude Code, OpenCode या Pi इंस्टॉल करें।",
-    "agent_translation_complete": "{{agent}} ने सेगमेंट का अनुवाद पूरा कर दिया।"
+    "agent_translation_complete": "{{agent}} ने सेगमेंट का अनुवाद पूरा कर दिया।",
+    "input_issue_no_audio": "कोई ऑडियो ट्रैक नहीं — आवाज़ वाली वीडियो या ऑडियो फ़ाइल चुनें",
+    "input_issue_invalid_media": "यह फ़ाइल पढ़ी नहीं जा सकती — पूरी, चलने योग्य फ़ाइल चुनें",
+    "input_issue_unsupported": "असमर्थित फ़ाइल प्रकार — वीडियो या ऑडियो फ़ाइल चुनें",
+    "input_issue_empty": "यह फ़ाइल खाली है — कोई दूसरी फ़ाइल चुनें",
+    "file_actions": "फ़ाइल क्रियाएँ",
+    "translator_agent": "एजेंट"
   },
   "dub_workflow": {
     "preparing_audio": "ऑडियो तैयार किया जा रहा है…",

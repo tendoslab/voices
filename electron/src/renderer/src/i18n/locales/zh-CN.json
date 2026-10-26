@@ -933,7 +933,13 @@
     "agent_cli_desc": "{{agent}} 会结合上下文翻译每个片段，并在测量语音后重写不符合时长的内容。",
     "choose_translation_agent": "选择翻译智能体",
     "no_local_agents": "安装 Codex、Claude Code、OpenCode 或 Pi，以使用本地代理翻译。",
-    "agent_translation_complete": "{{agent}} 已完成片段翻译。"
+    "agent_translation_complete": "{{agent}} 已完成片段翻译。",
+    "input_issue_no_audio": "没有音轨 — 请选择带声音的视频或音频文件",
+    "input_issue_invalid_media": "无法读取此文件 — 请选择完整、可播放的文件",
+    "input_issue_unsupported": "不支持的文件类型 — 请选择视频或音频文件",
+    "input_issue_empty": "此文件为空 — 请选择其他文件",
+    "file_actions": "文件操作",
+    "translator_agent": "智能体"
   },
   "dub_workflow": {
     "preparing_audio": "正在准备音频...",
