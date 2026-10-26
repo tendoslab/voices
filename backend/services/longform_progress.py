@@ -149,7 +149,9 @@ class RenderProgress:
             "fraction": round(self.fraction(), 4),
             "eta_s": _r(self.eta_seconds()),
             "rtf": _r(self.realtime_factor(), 3),
-            "chunk_s": _r(self.chunk_seconds()),
+            # Millisecond precision: a fast engine's chunk (tens of ms) must
+            # not round to 0.0, which reads as "no baseline" downstream.
+            "chunk_s": _r(self.chunk_seconds(), 3),
             "elapsed_s": _r(now - self._started),
         }
 

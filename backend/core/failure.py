@@ -491,6 +491,9 @@ _CONTEXT_FREE_HINT_CLASSES = frozenset({
     # sentence.
     "ENGINE_DEPENDENCY_MISSING",
     "REFERENCE_STT_MISSING",
+    # Matched on VoiceStudio's own fixed sentence (no paths or user data);
+    # terminal, so the stream frame must be able to carry its hint.
+    "SOURCE_LANGUAGE_REQUIRED",
 })
 
 

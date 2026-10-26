@@ -87,6 +87,17 @@ def test_textless_book_falls_back_to_chapter_count():
     assert snap["fraction"] == 0.5 and snap["eta_s"] is None
 
 
+def test_fast_chunks_keep_a_nonzero_baseline_in_the_snapshot():
+    """A 20 ms chunk (a fast engine, or CI) used to round to chunk_s 0.0."""
+    clock = _Clock()
+    p = RenderProgress([1000], clock=clock)
+    p.start_chapter(0)
+    clock.t = 0.02
+    p.chunk(0, 100, 1000, audio_s=0.1)
+    snap = p.snapshot()
+    assert snap["chunk_s"] > 0 and snap["rtf"] > 0 and snap["eta_s"] is not None
+
+
 # ── synthesize_chapter reports every chunk ──────────────────────────────────
 
 def test_synthesize_chapter_reports_each_chunk_and_reaches_the_total():
