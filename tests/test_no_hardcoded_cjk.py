@@ -41,15 +41,18 @@ _SKIP_EXT = {
 # CJK (test-fixture descriptions, model/engine identifiers like CosyVoice
 # speaker IDs, multilingual sample text) — they are documentation, not shipped
 # UI strings, so they belong on the same footing as the allowlisted docs below.
-_ALLOWED_PREFIXES = ("electron/src/shared/i18n/", "electron/src/renderer/src/i18n/", "docs/specs/")
+_ALLOWED_PREFIXES = (
+    "electron/src/shared/i18n/",
+    "electron/src/renderer/src/i18n/",
+    "docs/specs/",
+    "docs/readme/",  # translated READMEs and their native language-switcher links
+)
 
 # Functional / data / documentation files where CJK is intentional and required.
 _ALLOWED_FILES = {
     "electron/src/main/blank-window-guard.ts",
     # Documentation & translated docs
     "README.md",                                  # native language-switcher link
-    "docs/readme/README_CN.md",                   # Chinese README (a translation)
-    "docs/readme/README_JA.md",                   # Japanese README (a translation)
     "docs/data_preparation.md",                   # multilingual example payloads
     "docs/voice-design.md",                       # EN/CJK attribute mapping table
     "docs/engines/omnivoice.md",                  # pinyin pronunciation-control example (functional CJK)
