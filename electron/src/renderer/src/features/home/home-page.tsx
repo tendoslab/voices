@@ -165,6 +165,7 @@ export function HomePage() {
       to: item.project.mode === 'stories' ? '/stories' : '/audiobook',
     });
   };
+  /** Open a saved voice in its original creation workflow and restore settings. */
   const useProfile = async (profile: (typeof profiles)[number]) => {
     if (profile.kind === 'design') {
       const current = readDraft();
@@ -174,6 +175,9 @@ export function HomePage() {
           attrs: restored.attrs,
           seed: restored.seed,
           profileId: restored.profileId,
+          description: restored.description,
+          picks: restored.picks,
+          mapped: restored.mapped,
         }),
       );
       patchCloneSettings({ language: restored.language });

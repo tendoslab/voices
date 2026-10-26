@@ -94,6 +94,35 @@ def test_import_preserves_design_kind(iso):
     assert json.loads(row["vd_states"])["Gender"] == "female"
 
 
+def test_imported_clone_preserves_freeform_prose(iso):
+    """A real marketplace import must not lose its original style on VoxCPM2."""
+    _, db, marketplace = iso
+    from fastapi import UploadFile
+    from services.voice_design_profiles import profile_instruct
+
+    prose = "Speak softly with warm breathiness and a gentle, wistful emotion."
+    file = UploadFile(
+        filename="freeform-clone.omnivoice",
+        file=io.BytesIO(_make_bundle({
+            "bundle_version": 1,
+            "profile_name": "Freeform clone",
+            "kind": "clone",
+            "instruct": prose,
+        })),
+    )
+    result = asyncio.run(marketplace.import_profile(file))
+    with db.db_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM voice_profiles WHERE id=?",
+            (result["profile_id"],),
+        ).fetchone()
+
+    assert row["kind"] == "clone"
+    assert row["instruct"] == prose
+    assert profile_instruct(row, "voxcpm2") == prose
+    assert profile_instruct(row, "omnivoice") != prose
+
+
 def test_import_legacy_bundle_defaults_to_clone(iso):
     cfg, db, mk = iso
     from fastapi import UploadFile

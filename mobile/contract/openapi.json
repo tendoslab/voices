@@ -759,6 +759,28 @@
    },
    "Body_create_profile_profiles_post": {
     "properties": {
+     "design_recipe": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Design Recipe"
+     },
+     "engine": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Engine"
+     },
      "image": {
       "anyOf": [
        {
@@ -16491,6 +16513,7 @@
   },
   "/profiles/{profile_id}/audio": {
    "get": {
+    "description": "Serve a saved voice sample or lazily render a pending designed voice.\n\nProfile IDs and stored filenames are confined to VOICES_DIR; concurrent\nsample requests share a single synthesis job and never expose partial WAVs.",
     "operationId": "get_profile_audio_profiles__profile_id__audio_get",
     "parameters": [
      {

@@ -262,6 +262,9 @@ export function CommandPalette() {
               attrs: restored.attrs,
               seed: restored.seed,
               profileId: restored.profileId,
+              description: restored.description,
+              picks: restored.picks,
+              mapped: restored.mapped,
             }),
           );
           patchCloneSettings({ language: restored.language });

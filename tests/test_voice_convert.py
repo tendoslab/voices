@@ -170,6 +170,35 @@ def _post_convert(client, pid, **extra):
 # ── The route ───────────────────────────────────────────────────────────────
 
 
+def test_convert_native_voice_uses_full_description(client, monkeypatch, _init_db):
+    """Converting with VoxCPM2 preserves a saved profile's free-form prose."""
+    import json
+    from core.db import db_conn
+
+    fake = _make_fake_engine(f"native-conv-{uuid.uuid4().hex[:6]}")
+    fake.instruct_vocabulary = "freeform"
+    asr = _FakeASR({"text": "Hello from a designed voice", "segments": []})
+    _wire_stubs(monkeypatch, engine_cls=fake, asr=asr)
+    pid = f"native-conv-{uuid.uuid4().hex[:8]}"
+    desc = "A warm, breathy adult voice speaking with a soft Japanese accent."
+    with db_conn() as conn:
+        conn.execute(
+            "INSERT INTO voice_profiles "
+            "(id, name, kind, instruct, vd_states, design_recipe, created_at) "
+            "VALUES (?, 'Native design', 'design', 'female', ?, ?, 0)",
+            (pid, json.dumps({"Gender": "female"}), json.dumps({
+                "description": desc, "picks": {"Pitch": "low pitch"},
+                "engine": fake.id,
+            })),
+        )
+    try:
+        res = _post_convert(client, pid, match_duration="0")
+        assert res.status_code == 200, res.text
+        assert fake.calls[0][1]["instruct"] == desc + ", low pitch"
+    finally:
+        _delete_profile_and_takes(pid)
+
+
 def test_convert_happy_path(client, monkeypatch, clone_profile):
     """ASR text → TTS with the profile's reference clip → saved take with a
     'convert' history row, answered as {audio_url, text, duration_s}."""

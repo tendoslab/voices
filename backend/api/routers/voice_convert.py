@@ -198,7 +198,8 @@ async def convert_speech(
             status_code=404,
             detail="That voice profile doesn't exist. It may have been deleted from another tab.",
         )
-    cond = _resolve_profile_conditioning(row)
+    # Resolve conditioning after selecting the effective TTS engine so native
+    # Voice Design recipes are interpreted consistently with /generate.
 
     # ── Save the upload before loading an engine. Every ASR backend (and
     # ffprobe) needs a file path; the bounded streaming copy rejects oversized
@@ -226,6 +227,7 @@ async def convert_speech(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
+        cond = _resolve_profile_conditioning(row, engine_id=backend.id)
         result = await _transcribe_source(tmp.name, source_lease=source_lease)
 
         segments = result.get("segments", [])

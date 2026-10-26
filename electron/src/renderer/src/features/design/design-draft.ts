@@ -94,10 +94,9 @@ export function writeDraft(draft: DesignDraft) {
 }
 
 /**
- * Replace the design recipe (saved profile, preset, personality or demo). The
- * description belonged to the previous voice, so it is dropped: a free-form
- * engine would otherwise receive both as contradictory directions. The new
- * recipe's details are explicit choices.
+ * Replace a Voice Design draft with a saved profile, preset, or new recipe.
+ * Any description and picks supplied by the source are preserved. If omitted,
+ * they reset instead of leaking another voice's earlier free-form directions.
  */
 export function replaceRecipe(current: DesignDraft, recipe: Partial<DesignDraft>): DesignDraft {
   // Only a saved voice links the draft; a preset, personality or demo starts
@@ -106,10 +105,10 @@ export function replaceRecipe(current: DesignDraft, recipe: Partial<DesignDraft>
     ...current,
     ...recipe,
     profileId: recipe.profileId ?? null,
-    description: '',
-    mapped: {},
+    description: recipe.description ?? '',
+    mapped: recipe.mapped ?? {},
   };
-  return { ...next, picks: explicitDetails(next.attrs) };
+  return { ...next, picks: recipe.picks ?? explicitDetails(next.attrs) };
 }
 
 /**
@@ -298,25 +297,40 @@ export function designDraftFromTake(item: HistoryItem): DesignDraft {
 export function restoreDesignProfile(
   profile: Profile,
   fallbackSeed: number,
-): Pick<DesignDraft, 'attrs' | 'seed' | 'profileId'> & { language: string } {
+): Pick<DesignDraft, 'attrs' | 'seed' | 'profileId' | 'description' | 'picks' | 'mapped'> & {
+  language: string;
+} {
+  const recipe = parseRecipe(profile.design_recipe);
   const editedAttrs = instructToVdStates(profile.instruct ?? '');
   let attrs = editedAttrs;
   if (profile.vd_states) {
     try {
       const parsed = JSON.parse(profile.vd_states);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        // vd_states is the saved source of truth for explicit controls. Keep
-        // any values that are only represented in the descriptive prompt.
+        // vd_states remains the source of truth for the effective category
+        // controls, even if the free-form description covers richer traits.
         attrs = { ...editedAttrs, ...(parsed as Record<string, string>) };
       }
     } catch {
       /* The complete instruct-derived fallback remains usable. */
     }
   }
+  const description = recipe?.description ?? '';
+  const merged = mergeDescribedAttrs(attrs);
   return {
-    attrs: mergeDescribedAttrs(attrs),
+    attrs: merged,
     seed: profile.seed ?? fallbackSeed,
     profileId: profile.id,
     language: profile.language || 'Auto',
+    description,
+    mapped: recipe?.mapped ?? {},
+    picks: recipe
+      ? Object.fromEntries(
+          Object.entries(recipe.picks).map(([category, value]) => [
+            category,
+            { value, description },
+          ]),
+        )
+      : explicitDetails(merged),
   };
 }

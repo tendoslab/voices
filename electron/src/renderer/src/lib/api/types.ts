@@ -24,6 +24,8 @@ export interface Profile {
   seed: number | null;
   personality: string | null;
   vd_states: string | null;
+  /** Complete native Voice Design prompt, explicit picks and authoring engine. */
+  design_recipe?: string | null;
   /** Epoch seconds (SQLite REAL) on the wire; tolerate ISO strings too. */
   created_at: number | string;
   is_locked: boolean | number | null;

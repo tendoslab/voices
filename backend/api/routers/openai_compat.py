@@ -717,8 +717,11 @@ async def create_speech(req: SpeechRequest):
                 kw["ref_audio"] = contained_join(VOICES_DIR, row["ref_audio_path"])
             if row["ref_text"]:
                 kw["ref_text"] = row["ref_text"]
-            if row["instruct"] and not instruct:
-                kw["instruct"] = row["instruct"]
+            if not instruct:
+                from services.voice_design_profiles import profile_instruct
+                stored_instruct = profile_instruct(row, backend.id)
+                if stored_instruct:
+                    kw["instruct"] = stored_instruct
             if req.seed is None and row["seed"] is not None:
                 kw["seed"] = row["seed"]
         else:

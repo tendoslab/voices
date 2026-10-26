@@ -147,6 +147,7 @@ export function SavedVoices({
     return () => window.removeEventListener(DESIGN_DRAFT_EVENT, sync);
   }, []);
 
+  /** Restore a saved design's complete recipe or select a clone reference. */
   const select = async (profile: Profile) => {
     if (profile.kind === 'design') {
       const current = readDraft();
@@ -156,6 +157,9 @@ export function SavedVoices({
           attrs: restored.attrs,
           seed: restored.seed,
           profileId: restored.profileId,
+          description: restored.description,
+          picks: restored.picks,
+          mapped: restored.mapped,
         }),
       );
       setCloneSetting('language', restored.language);

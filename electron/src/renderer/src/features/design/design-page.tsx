@@ -267,6 +267,9 @@ export function DesignPage() {
                             attrs: restored.attrs,
                             seed: restored.seed,
                             profileId: restored.profileId,
+                            description: restored.description,
+                            picks: restored.picks,
+                            mapped: restored.mapped,
                           }),
                         );
                         setCloneSetting('language', restored.language);

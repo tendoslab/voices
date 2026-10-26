@@ -57,6 +57,7 @@ _BASE_SCHEMA = """
         consent_recorded_at REAL DEFAULT NULL,
         kind TEXT DEFAULT 'clone',
         vd_states TEXT DEFAULT NULL,
+        design_recipe TEXT DEFAULT NULL,
         created_at REAL,
         sync_id TEXT DEFAULT NULL,
         consent_basis TEXT DEFAULT '',

@@ -36,7 +36,6 @@ from services.model_acceptance import ModelLicenceNotAccepted
 from core import event_bus
 from core.render_trace import call as trace_call
 from core.logging_utils import log_safe
-from omnivoice.utils.voice_design import heal_design_instruct
 from core.browser_guard import reject_cross_site_get
 
 router = APIRouter()
@@ -274,19 +273,14 @@ def _design_recipe_json(raw: Optional[str]) -> Optional[str]:
     )
 
 
-def _profile_instruct(row):
-    """Validator-safe instruct for a stored profile row.
+def _profile_instruct(row, engine_id=None):
+    """Engine-appropriate stored instruction (legacy tags or native recipe).
 
-    Sanitizes the persisted instruct (dropping the ``"[object Object]"``
-    sentinel / freeform prose that older builds saved) and, for a design row,
-    rebuilds the tags from ``vd_states`` when the stored value is unusable — so
-    a poisoned/legacy profile never 400-s generation (#550 #571 #594 #596).
+    Legacy records retain the OmniVoice sanitizer. Only profiles that
+    explicitly saved a validated recipe may supply free-form descriptions.
     """
-    try:
-        vd = row["vd_states"]
-    except (KeyError, IndexError):
-        vd = None
-    return heal_design_instruct(row["instruct"], vd)
+    from services.voice_design_profiles import profile_instruct
+    return profile_instruct(row, engine_id)
 
 
 def _design_instruct_key(value):
@@ -303,7 +297,7 @@ def _design_instruct_key(value):
     )
 
 
-def _design_request_diverges(row, *, instruct=None, seed=None):
+def _design_request_diverges(row, *, instruct=None, seed=None, engine_id=None):
     """True when a request edits a design profile instead of re-rendering it.
 
     A design profile's rendered sample *is* the voice it was saved with. A
@@ -319,6 +313,7 @@ def _design_request_diverges(row, *, instruct=None, seed=None):
         stored = {
             _design_instruct_key(row["instruct"]),
             _design_instruct_key(_profile_instruct(row)),
+            _design_instruct_key(_profile_instruct(row, engine_id)),
         }
         if requested not in stored:
             return True
@@ -363,7 +358,10 @@ def _conditioning_refusal(backend_cls, *, profile_id=None, has_ref_audio=False,
                 "SELECT * FROM voice_profiles WHERE id=?", (profile_id,)
             ).fetchone()
         if row is not None:
-            cond = _resolve_profile_conditioning(row, instruct=instruct, seed=seed)
+            cond = _resolve_profile_conditioning(
+                row, instruct=instruct, seed=seed,
+                engine_id=getattr(backend_cls, "id", None),
+            )
             reference = bool(cond["ref_audio_path"])
             designing = designing or cond["kind"] == "design"
     name = getattr(backend_cls, "display_name", None) or getattr(backend_cls, "id", "This engine")
@@ -386,7 +384,7 @@ def _conditioning_refusal(backend_cls, *, profile_id=None, has_ref_audio=False,
 
 
 def _resolve_profile_conditioning(row, *, ref_text=None, instruct=None,
-                                  seed=None, language=None):
+                                  seed=None, language=None, engine_id=None):
     """Resolve a ``voice_profiles`` row into generation conditioning.
 
     Extracted verbatim from /generate's inline profile-resolution block so
@@ -427,12 +425,13 @@ def _resolve_profile_conditioning(row, *, ref_text=None, instruct=None,
     locked_take = bool(row["is_locked"] and row["locked_audio_path"])
     if profile_kind == "design" and _design_request_diverges(
         row, instruct=instruct, seed=None if locked_take else seed,
+        engine_id=engine_id,
     ):
         # Design from the request's attributes and seed; only the gaps it
         # left (an omitted instruct or seed) come from the profile.
         out["diverged"] = True
         if not out["instruct"]:
-            out["instruct"] = _profile_instruct(row)
+            out["instruct"] = _profile_instruct(row, engine_id)
         if out["seed"] is None and row["seed"] is not None:
             out["seed"] = row["seed"]
     elif row["is_locked"] and row["locked_audio_path"]:
@@ -440,7 +439,7 @@ def _resolve_profile_conditioning(row, *, ref_text=None, instruct=None,
         if not out["ref_text"]:
             out["ref_text"] = row["ref_text"]
         if not out["instruct"]:
-            out["instruct"] = _profile_instruct(row)
+            out["instruct"] = _profile_instruct(row, engine_id)
         if out["seed"] is None and row["seed"] is not None:
             out["seed"] = row["seed"]
     elif profile_kind == "design":
@@ -450,14 +449,14 @@ def _resolve_profile_conditioning(row, *, ref_text=None, instruct=None,
         if out["ref_audio_path"] and not out["ref_text"] and row["ref_text"]:
             out["ref_text"] = row["ref_text"]
         if not out["instruct"]:
-            out["instruct"] = _profile_instruct(row)
+            out["instruct"] = _profile_instruct(row, engine_id)
         if out["seed"] is None and row["seed"] is not None:
             out["seed"] = row["seed"]
     elif row["instruct"] and not row["is_locked"] and not row["ref_audio_path"]:
         # Legacy design-shaped row (pre-0004 archetype materialization failure
         # path): instruct-only conditioning.
         if not out["instruct"]:
-            out["instruct"] = _profile_instruct(row)
+            out["instruct"] = _profile_instruct(row, engine_id)
         if out["seed"] is None and row["seed"] is not None:
             out["seed"] = row["seed"]
     else:
@@ -2081,7 +2080,7 @@ async def generate_speech(
             # language fill, #1032 transcript-cache signal).
             _cond = _resolve_profile_conditioning(
                 row, ref_text=ref_text, instruct=instruct, seed=used_seed,
-                language=language,
+                language=language, engine_id=engine_id,
             )
             # An edited design is a new voice, not a take of this profile.
             resolved_profile_id = None if _cond["diverged"] else profile_id

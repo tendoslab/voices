@@ -34,6 +34,30 @@ const profile = {
 describe('designed voice drafts', () => {
   beforeEach(() => localStorage.clear());
 
+  it('restores the native free-form prompt and explicit picks from a saved voice', () => {
+    const description = 'a gentle, slightly raspy Japanese narrator';
+    const native = {
+      ...profile,
+      design_recipe: JSON.stringify({
+        description,
+        picks: { Pitch: 'low pitch' },
+        mapped: { Gender: 'female', Age: 'young adult' },
+        engine: 'voxcpm2',
+      }),
+    };
+    const restored = restoreDesignProfile(native, 9);
+    expect(restored).toMatchObject({
+      description,
+      profileId: profile.id,
+      picks: { Pitch: { value: 'low pitch', description } },
+      mapped: { Gender: 'female', Age: 'young adult' },
+    });
+    const reopened = replaceRecipe(readDraft(), restored);
+    expect(reopened.description).toBe(description);
+    expect(reopened.profileId).toBe(profile.id);
+    expect(designInstruct(reopened, 'freeform')).toBe(description + ', low pitch');
+  });
+
   it('persists the selected profile identity with the draft', () => {
     localStorage.setItem(
       STORAGE,
