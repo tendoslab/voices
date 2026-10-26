@@ -149,6 +149,11 @@ export default {
     { from: 'build/icons/icon.png', to: 'brand/icon.png' },
     { from: 'build/icons/icon.ico', to: 'brand/icon.ico' },
     { from: 'build/icons/32x32.png', to: 'brand/32x32.png' },
+    { from: 'build/icons/trayTemplate.png', to: 'brand/trayTemplate.png' },
+    {
+      from: 'build/icons/trayRecordingTemplate.png',
+      to: 'brand/trayRecordingTemplate.png',
+    },
     {
       from: 'build/icons/tray-recording.png',
       to: 'brand/tray-recording.png',
