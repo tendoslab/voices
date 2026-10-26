@@ -30,16 +30,20 @@ export function useFollowLatestTake() {
   // Only a render made while this page is mounted moves the pane: an output
   // left over from earlier must not replace a take the user just opened.
   const seen = useRef(latest);
-  const pending = useRef<string | null>(null);
+  // The new render, and the take that was open when it landed. Opening a
+  // different take before the history catches up cancels the follow, so the
+  // user's choice (and any half-filled save form on it) is never replaced.
+  const pending = useRef<{ render: string; from: string } | null>(null);
   useEffect(() => {
     if (latest !== seen.current) {
       seen.current = latest;
-      pending.current = latest;
+      pending.current = latest && open ? { render: latest, from: open.id } : null;
     }
-    const next = nextOpenTake(open, pending.current, history);
+    if (pending.current && pending.current.from !== open?.id) pending.current = null;
+    const next = nextOpenTake(open, pending.current?.render ?? null, history);
     if (next) {
       pending.current = null;
       openTake(next);
-    } else if (!open) pending.current = null;
+    }
   }, [latest, open, history]);
 }

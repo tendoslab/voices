@@ -214,4 +214,13 @@ describe('ActionBar while text-to-speech is not ready', () => {
     expect(screen.getByRole('button', { name: 'Set up' })).toBeEnabled();
     expect(screen.getByRole('status')).toHaveTextContent('Text-to-speech is not ready');
   });
+
+  it('drives the setup the page passes in, so a download outlives the notice', () => {
+    readiness.blocker = 'engine';
+    runtime.isGenerating = false;
+    const setup = { blocked: true, busy: false, install: null, fix: vi.fn() };
+    render(<ActionBar setup={setup} />);
+    screen.getByRole('button', { name: 'Set up' }).click();
+    expect(setup.fix).toHaveBeenCalled();
+  });
 });

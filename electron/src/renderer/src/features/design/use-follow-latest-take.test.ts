@@ -47,3 +47,14 @@ it('leaves a take the user opened alone until a new render lands, then shows it'
   rerender();
   expect(state.openTake).toHaveBeenCalledWith(take('new'));
 });
+
+it('drops the follow when the user opens another take before the history catches up', () => {
+  const { rerender } = renderHook(() => useFollowLatestTake());
+  state.latest = 'new';
+  rerender();
+  state.open = take('chosen');
+  rerender();
+  state.history = [take('new'), take('chosen'), ...state.history];
+  rerender();
+  expect(state.openTake).not.toHaveBeenCalled();
+});

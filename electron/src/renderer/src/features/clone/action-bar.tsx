@@ -1,5 +1,10 @@
 import { PipelineFailure } from '@/components/pipeline-failure';
-import { EngineSetupButton, EngineSetupStatus, useEngineSetup } from '@/components/engine-notice';
+import {
+  EngineSetupButton,
+  EngineSetupStatus,
+  useEngineSetup,
+  type EngineSetup,
+} from '@/components/engine-notice';
 import { InstallSttButton } from './install-stt-button';
 import { Progress as ProgressPrimitive } from '@base-ui/react/progress';
 import {
@@ -318,7 +323,7 @@ export function VoiceControls({ size = 'icon-lg' }: { size?: 'icon-sm' | 'icon-l
 }
 
 /** Render the Voice Cloning composer including engine-aware emotion controls. */
-export function ActionBar() {
+export function ActionBar({ setup: shared }: { setup?: EngineSetup } = {}) {
   const { t } = useTranslation();
   const demo = useCloneDemo();
   const mac = isMac();
@@ -351,7 +356,9 @@ export function ActionBar() {
       )
     : t('clone.synthesize');
   // Not ready: the primary action is the setup that fixes it, not a dead Synthesize.
-  const setup = useEngineSetup('clone');
+  // The page passes its own setup so a download outlives the notice above.
+  const own = useEngineSetup('clone');
+  const setup = shared ?? own;
   const needsSetup = blocker === 'engine' && !demo && !isGenerating;
 
   return (

@@ -224,8 +224,21 @@ export function EngineNotice({
   operation?: string;
   compact?: boolean;
 }) {
+  return <EngineSetupNotice setup={useEngineSetup(operation)} compact={compact} />;
+}
+
+/**
+ * The notice for a setup owned higher up, so a download it started keeps its
+ * progress and Cancel when the notice hands over to the composer.
+ */
+export function EngineSetupNotice({
+  setup,
+  compact = false,
+}: {
+  setup: EngineSetup;
+  compact?: boolean;
+}) {
   const { t } = useTranslation();
-  const setup = useEngineSetup(operation);
   if (!setup.blocked) return null;
   const action = setup.install ? (
     <EngineSetupProgress
