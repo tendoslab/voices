@@ -583,15 +583,20 @@ export function DubPage() {
       )
         return;
       const key = event.key.toLowerCase();
+      const field = event.target;
       if (key === 'z') {
         // The find and replace inputs keep their own text undo.
-        if (isFindBarTarget(event.target)) return;
+        if (isFindBarTarget(field)) return;
+        // Other inputs keep their own undo; only segment text shares the transcript history.
+        const editing =
+          field instanceof HTMLElement &&
+          (field.matches('input, textarea') || field.isContentEditable);
+        if (editing && !(field instanceof HTMLTextAreaElement && field.dataset.segmentId)) return;
         event.preventDefault();
         if (event.shiftKey) redoDubEdit();
         else undoDubEdit();
         return;
       }
-      const field = event.target;
       if (!(field instanceof HTMLTextAreaElement)) return;
       const id = field.dataset.segmentId;
       if (!id) return;
